@@ -3,7 +3,7 @@
 输入 TMDB 媒体类型、ID 和视频语言，由 GitHub Actions 查找并下载对应预告片，转成 720p／1080p H.264/AAC MP4 后优先上传私有 Hugging Face 数据集。R2 仅保留小型任务/清单对象和既有视频回退；Worker 保持原 trailer_url 契约。
 
 ```text
-POST Worker → workflow_dispatch → TMDB/KinoCheck → yt-dlp + FFmpeg → HF private dataset
+POST Worker → workflow_dispatch → TMDB → yt-dlp + FFmpeg → HF private dataset
 GET metadata → Worker stable URL → short-lived HF CDN URL → AVPlayer/MPV
 R2: job state + immutable HF manifest; existing R2 MP4 as fallback
 ```
@@ -20,8 +20,8 @@ R2: job state + immutable HF manifest; existing R2 MP4 as fallback
 | `R2_ACCOUNT_ID` | 上传必需 | Cloudflare Account ID（32 位十六进制） |
 | `R2_ACCESS_KEY_ID` | 上传必需 | 仅限目标 bucket 的 Object Read & Write S3 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | 上传必需 | 配套 S3 Secret Access Key |
-| `TMDB_TOKEN` | 推荐 | TMDB Read Access Token；无此项时 en/de 使用 KinoCheck |
-| `KINOCHECK_API_KEY` | 可选 | 提升 KinoCheck 请求额度 |
+| `TMDB_TOKEN` | 推荐 | TMDB Read Access Token；无此项时经现有 tmdb.saltpi.cn 查询 |
+| `KINOCHECK_API_KEY` | 可选 | 默认关闭；仅脚本显式 ENABLE_KINOCHECK=true 时可补充无候选项 |
 | `YOUTUBE_COOKIES` | 可选 | 仅含 YouTube 域名的 Netscape Cookie，用于确实需要认证的情况 |
 
 Actions Variables：`STORAGE_BACKEND=hf`（默认）、`HF_REPO_ID=saltpi/iplay-trailers`；显式设置 `STORAGE_BACKEND=r2` 才启用旧上传路径。`R2_BUCKET` 默认 `media`；如果改名，须同步修改 Worker 的 `wrangler.toml`。
@@ -43,7 +43,7 @@ gh workflow run cache-trailer.yml --repo endeny/trailer \
   -f media_type=movie -f tmdb_id=299534 -f language=en -f dry_run=true
 ```
 
-`dry_run` 完成真实的解析、下载、转码和媒体探测，但不连接 R2，文件在任务结束时丢弃。这可以先验证 GitHub runner 的 YouTube 可用性。非 en/de 语言需要 `TMDB_TOKEN`。
+`dry_run` 完成真实的解析、下载、转码和媒体探测，但不连接 R2，文件在任务结束时丢弃。这可以先验证 GitHub runner 的 YouTube 可用性。视频语言仍按 TMDB 返回的 iso_639_1 严格过滤。
 
 正常上传：
 
@@ -183,4 +183,12 @@ HF 优先存储、双清晰度与实际部署验证见 [HF 实现与边界](doc/
 gh workflow run warm-popular.yml --repo endeny/trailer -f language=en
 ```
 
-顺序下载、HF 缓存复用、R2 持久进度。连续三部认证失败暂停，其余保留待处理；修复后重跑续接。Actions Summary 与报告分别显示成功、无预告、失败、待处理，不将“入队 200”描述为“下载完成 200”。
+电影、剧集各一条队列，可同时下载和转码；HF 容量核算与提交使用短租约串行，HF 缓存复用、R2 持久进度。连续三部认证失败暂停，其余保留待处理；修复后重跑续接。Actions Summary 与报告分别显示成功、无预告、失败、待处理，不将“入队 200”描述为“下载完成 200”。
+
+热门电视剧 200 部：
+
+```bash
+gh workflow run warm-popular.yml --repo endeny/trailer -f media_type=tv -f language=en
+```
+
+电影使用 `media_type=movie`（默认）。两类名单、检查点和 concurrency group 独立；默认仅查询 TMDB 视频列表，KinoCheck 不参与生产预热。

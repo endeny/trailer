@@ -1,8 +1,13 @@
 name: Prewarm popular 200 trailers
-run-name: Popular 200 movie trailers / ${{ inputs.language }}
+run-name: Popular 200 ${{ inputs.media_type }} trailers / ${{ inputs.language }}
 on:
   workflow_dispatch:
     inputs:
+      media_type:
+        description: Popular media type
+        type: choice
+        options: [movie, tv]
+        default: movie
       language:
         description: Trailer language
         type: choice
@@ -12,7 +17,7 @@ permissions:
   contents: read
   actions: write
 concurrency:
-  group: popular-trailers-${{ inputs.language }}
+  group: popular-trailers-${{ inputs.media_type == 'tv' && 'tv-' || '' }}${{ inputs.language }}
   cancel-in-progress: false
 jobs:
   prewarm:
@@ -49,6 +54,7 @@ jobs:
           HF_REPO_ID: ${{ vars.HF_REPO_ID || 'saltpi/iplay-trailers' }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           YOUTUBE_PO_PROVIDER: "true"
+          MEDIA_TYPE: ${{ inputs.media_type }}
           VIDEO_LANGUAGE: ${{ inputs.language }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ vars.R2_BUCKET || 'media' }}
@@ -56,7 +62,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           TMDB_PROXY_URL: https://tmdb.saltpi.cn
           TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
-          KINOCHECK_API_KEY: ${{ secrets.KINOCHECK_API_KEY }}
           YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
           umask 077
@@ -67,7 +72,9 @@ jobs:
             export YOUTUBE_COOKIES_FILE="$cookie_path"
           fi
           unset YOUTUBE_COOKIES
-          python scripts/warm_popular.py --plan data/popular-movies-20261121.json --language "$VIDEO_LANGUAGE" --report "$RUNNER_TEMP/popular-report.json"
+          plan="data/popular-movies-20261121.json"
+          if [ "$MEDIA_TYPE" = "tv" ]; then plan="data/popular-tv-20261121.json"; fi
+          python scripts/warm_popular.py --plan "$plan" --language "$VIDEO_LANGUAGE" --report "$RUNNER_TEMP/popular-report.json"
       - name: Save safe batch report
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,8 +87,9 @@ jobs:
         if: steps.warm.outputs.continue == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          MEDIA_TYPE: ${{ inputs.media_type }}
           VIDEO_LANGUAGE: ${{ inputs.language }}
-        run: gh workflow run warm-popular.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f language="$VIDEO_LANGUAGE"
+        run: gh workflow run warm-popular.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f language="$VIDEO_LANGUAGE" -f media_type="$MEDIA_TYPE"
       - name: Stop PO Token provider
         if: always()
         run: docker rm -f trailer-pot >/dev/null 2>&1 || true

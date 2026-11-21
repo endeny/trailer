@@ -82,7 +82,7 @@ def resolve(media_type, tmdb_id, language):
             candidates.extend(tmdb_candidates(data, language))
         except JobError:
             source_failed = True
-    proxy = os.environ.get("TMDB_PROXY_URL", "")
+    proxy = os.environ.get("TMDB_PROXY_URL", "https://tmdb.saltpi.cn")
     if not token and proxy:
         if proxy != "https://tmdb.saltpi.cn":
             raise JobError("invalid_tmdb_proxy")
@@ -93,7 +93,7 @@ def resolve(media_type, tmdb_id, language):
             candidates.extend(tmdb_candidates(data, language))
         except JobError:
             source_failed = True
-    if language in ("en", "de"):
+    if os.environ.get("ENABLE_KINOCHECK") == "true" and not candidates and language in ("en", "de"):
         headers = {}
         if os.environ.get("KINOCHECK_API_KEY"):
             headers = {"X-Api-Key": os.environ["KINOCHECK_API_KEY"], "X-Api-Host": "api.kinocheck.com"}
@@ -199,10 +199,9 @@ def download(candidate, directory):
 
 
 @contextmanager
-def storage_lease(s3, bucket):
+def storage_lease(s3, bucket, key="trailer-control/v1/download-lock.json"):
     """Serialize this service's uploads using a conditional R2 object, with crash recovery."""
     from botocore.exceptions import ClientError
-    key = "trailer-control/v1/download-lock.json"
     owner = uuid.uuid4().hex
     acquired = False
     for attempt in range(61):

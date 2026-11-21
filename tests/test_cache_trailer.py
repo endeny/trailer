@@ -61,7 +61,7 @@ class Pipeline(unittest.TestCase):
 
     def test_kinocheck_uses_unfiltered_endpoint_then_filters_locally(self):
         data = {'trailer': {'youtube_video_id': '12345678901', 'language': 'en', 'categories': ['Trailer']}}
-        with patch.dict(job.os.environ, {'TMDB_TOKEN': '', 'KINOCHECK_API_KEY': ''}), patch.object(job, 'request_json', return_value=data) as fetch:
+        with patch.dict(job.os.environ, {'TMDB_TOKEN': '', 'TMDB_PROXY_URL': '', 'KINOCHECK_API_KEY': '', 'ENABLE_KINOCHECK': 'true'}), patch.object(job, 'request_json', return_value=data) as fetch:
             result = job.resolve('movie', '299534', 'en')
         self.assertEqual(result[0]['youtube_id'], '12345678901')
         self.assertNotIn('categories=', fetch.call_args.args[0])
@@ -143,5 +143,12 @@ class TMDBProxy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp,patch.dict(job.os.environ,{'YOUTUBE_PO_PROVIDER':'true'}),patch.object(job,'download_with_client',side_effect=job.JobError('youtube_cookies_expired')) as download:
             with self.assertRaisesRegex(job.JobError,'youtube_cookies_expired'):job.download({},Path(temp))
             self.assertEqual(download.call_count,1)
+
+class TMDBOnly(unittest.TestCase):
+    def test_no_kinocheck_request_when_tmdb_has_no_matching_video(self):
+        with patch.dict(job.os.environ, {'TMDB_TOKEN':'','TMDB_PROXY_URL':'https://tmdb.saltpi.cn','ENABLE_KINOCHECK':'false'}), patch.object(job,'request_json',return_value={'results':[]}) as fetch:
+            self.assertEqual(job.resolve('tv','1399','en'),[])
+        self.assertEqual(fetch.call_count,1)
+        self.assertTrue(fetch.call_args.args[0].startswith('https://tmdb.saltpi.cn/3/tv/1399/videos'))
 
 if __name__ == '__main__': unittest.main()

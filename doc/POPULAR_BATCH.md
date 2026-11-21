@@ -36,3 +36,14 @@ gh workflow run warm-popular.yml --repo endeny/trailer -f language=en
 
 
 当前续跑 [44885399820](https://github.com/endeny/trailer/actions/runs/44885399820) 已取得 2 部真实双档 HF 视频；1368337 的两档已实际验证 HF CDN 206 与 H.264/AAC 尺寸。其余条目仍在顺序处理，不能将当前快照当作 200 部最终完成报告。
+
+
+## 电影与剧集并行（2026-11-21）
+
+用户追加热门前 200 部电视剧，并要求使用 TMDB 与并行执行。基线 `20c4192`。新增 `data/popular-tv-20261121.json`，来源 TMDB `/3/tv/popular`，200 个唯一 TV 身份，按 `/3/tv/:id/videos` 寻找预告。当前默认只查询 TMDB，KinoCheck 默认关闭；只在显式脚本开关 ENABLE_KINOCHECK=true 且 TMDB 无候选时才可用作维护补充，生产工作流不启用。
+
+工作流增加 media_type=movie/tv；自动续跑保留该参数。电影沿用原检查点和 concurrency group，剧集使用独立 popular-tv-* 检查点与 group，避免共享数字 ID 冲突。原电影 checkpoint hash 保持 3c1ffeb4c5117fca，TV 为 d18df95f3cf4f7c3。
+
+原 HF 作业将下载、转码、提交全部放在全局租约内，即使开两个 runner 也会串行等待。现在以 type/id/language 身份锁防重复，下载/编码并行；仅实际上传前的容量检查与原子 HF commit 共享全局短锁，避免并发超预算或提交竞争。两个批次各自顺序执行，因此正常为电影一部与剧集一部并行，不将 400 个视频同时抓取。
+
+验证：42 项 Python +19 项 Worker 测试通过。新增真实双线程屏障测试要求电影/TV 同时进入下载，且提交必须持全局锁；另覆盖 TV 元数据路径、独立检查点、name 字段与 TMDB 默认无 KinoCheck 请求。运行 ID、实际结果及代码 hash 在后续归档补齐。

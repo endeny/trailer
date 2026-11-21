@@ -16,7 +16,7 @@ class Batch(unittest.TestCase):
     def test_plan_rejects_duplicates_and_non_movie_ids(self):
         with tempfile.TemporaryDirectory() as temp:
             plan=Path(temp)/'plan.json'
-            for items in [[{'media_type':'tv','tmdb_id':1}],[{'media_type':'movie','tmdb_id':1}]*2]:
+            for items in [[{'media_type':'person','tmdb_id':1}],[{'media_type':'movie','tmdb_id':1}]*2]:
                 plan.write_text(json.dumps({'items':items}))
                 with self.assertRaises(ValueError):load_plan(plan,'en')
 
@@ -63,5 +63,30 @@ class Batch(unittest.TestCase):
     def test_not_found_is_terminal_and_does_not_block_other_movies(self):
         report,calls=self.run_fixture(2,{1:{'status':'not_found'},2:{'status':'ready','storage':'hf','variants':{}}})
         self.assertEqual(calls,[1,2]);self.assertEqual(report['status'],'completed');self.assertEqual(report['counts']['not_found'],1)
+
+class TVBatch(unittest.TestCase):
+    def test_tv_plan_has_separate_namespace_from_same_movie_id(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'plan.json'
+            path.write_text(json.dumps({'items':[{'media_type':'tv','tmdb_id':1399}]}))
+            items,tv_id=load_plan(path,'en')
+            self.assertEqual(items[0]['media_type'],'tv');self.assertTrue(tv_id.startswith('popular-tv-'))
+            path.write_text(json.dumps({'items':[{'media_type':'movie','tmdb_id':1399}]}))
+            self.assertNotEqual(tv_id,load_plan(path,'en')[1])
+
+    def test_tv_batch_reads_tv_metadata(self):
+        s3=S3();item={'media_type':'tv','tmdb_id':1399,'language':'en'}
+        def execute(identity):
+            self.assertEqual(identity['media_type'],'tv')
+            s3.objects['trailers/v1/tv/1399/en/metadata.json']=json.dumps({'status':'ready','storage':'hf','variants':{'1080p':{}}}).encode()
+            return 0
+        with tempfile.TemporaryDirectory() as temp:
+            report=run_batch(s3,'media',[item],'tv-test',Path(temp)/'report.json',execute=execute)
+        self.assertEqual(report['counts']['ready'],1)
+        self.assertEqual(report['items'][0]['qualities'],['1080p'])
+
+    def test_tv_snapshot_uses_name_and_preserves_tv_type(self):
+        plan=snapshot(1,lambda page:{'results':[{'id':1399,'name':'Game of Thrones'}]},media_type='tv')
+        self.assertEqual(plan['items'][0],{'media_type':'tv','tmdb_id':1399,'title':'Game of Thrones'})
 
 if __name__=='__main__':unittest.main()

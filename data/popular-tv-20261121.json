@@ -1,0 +1,1007 @@
+{
+  "schema_version": 1,
+  "source": "https://developer.themoviedb.org/reference/tv-series-popular-list",
+  "fetched_at": "2026-11-21T08:42:37.186327+00:00",
+  "items": [
+    {
+      "media_type": "tv",
+      "tmdb_id": 1434,
+      "title": "Family Guy"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1622,
+      "title": "Supernatural"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 76331,
+      "title": "Succession"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 18347,
+      "title": "Community"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 5920,
+      "title": "The Mentalist"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1413,
+      "title": "American Horror Story"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 84773,
+      "title": "The Lord of the Rings: The Rings of Power"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 60735,
+      "title": "The Flash"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 32573,
+      "title": "Strike Back"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1100,
+      "title": "How I Met Your Mother"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4620,
+      "title": "Eureka"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 37678,
+      "title": "The Voice"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1400,
+      "title": "Seinfeld"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2734,
+      "title": "Law & Order: Special Victims Unit"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 231100,
+      "title": "Boundless Love"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1421,
+      "title": "Modern Family"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 83631,
+      "title": "What We Do in the Shadows"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1877,
+      "title": "Phineas and Ferb"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 57243,
+      "title": "Doctor Who"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 18165,
+      "title": "The Vampire Diaries"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2316,
+      "title": "The Office"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4057,
+      "title": "Criminal Minds"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1408,
+      "title": "House"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2025,
+      "title": "Beverly Hills, 90210"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 456,
+      "title": "The Simpsons"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 60572,
+      "title": "Pokémon"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4177,
+      "title": "Perry Mason"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1416,
+      "title": "Grey's Anatomy"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 64414,
+      "title": "Wakfu"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 97079,
+      "title": "Agent Hamilton"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 42009,
+      "title": "Black Mirror"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2398,
+      "title": "Girlfriends"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1411,
+      "title": "Person of Interest"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2691,
+      "title": "Two and a Half Men"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 95480,
+      "title": "Slow Horses"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2153,
+      "title": "Arthur"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1420,
+      "title": "New Girl"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 46923,
+      "title": "Shetland"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4588,
+      "title": "ER"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1438,
+      "title": "The Wire"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 231962,
+      "title": "Diepe Waters"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 41727,
+      "title": "Banshee"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 22980,
+      "title": "Watch What Happens Live with Andy Cohen"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 79593,
+      "title": "Magnum P.I."
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 64432,
+      "title": "The Magicians"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 247718,
+      "title": "MobLand"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2261,
+      "title": "The Tonight Show Starring Johnny Carson"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 82873,
+      "title": "The Kelly Clarkson Show"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 59941,
+      "title": "The Tonight Show Starring Jimmy Fallon"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 61733,
+      "title": "Empire"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 37854,
+      "title": "One Piece"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 33238,
+      "title": "Running Man"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 61928,
+      "title": "Lucha Underground"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 61923,
+      "title": "Star vs. the Forces of Evil"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2119,
+      "title": "Airwolf"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 94722,
+      "title": "Tagesschau"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 48866,
+      "title": "The 100"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 11890,
+      "title": "Goede Tijden, Slechte Tijden"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 253376,
+      "title": "The Girlfriend"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 387,
+      "title": "SpongeBob SquarePants"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 65733,
+      "title": "Doraemon"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 206559,
+      "title": "Binnelanders"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 14424,
+      "title": "Young Hearts"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2224,
+      "title": "The Daily Show"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 498,
+      "title": "Late Show with David Letterman"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 86893,
+      "title": "Tacoma FD"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 61818,
+      "title": "Late Night with Seth Meyers"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 12323,
+      "title": "Beyond Belief: Fact or Fiction"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1480,
+      "title": "Ally McBeal"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 63770,
+      "title": "The Late Show with Stephen Colbert"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 153312,
+      "title": "Tulsa King"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 279246,
+      "title": "The Remarried Empress"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4614,
+      "title": "NCIS"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4656,
+      "title": "Raw"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 549,
+      "title": "Law & Order"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 45789,
+      "title": "Sturm der Liebe"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 873,
+      "title": "Columbo"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 63333,
+      "title": "The Last Kingdom"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 291,
+      "title": "Coronation Street"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2560,
+      "title": "UFO"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 46648,
+      "title": "True Detective"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 330613,
+      "title": "The Rules"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1668,
+      "title": "Friends"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2661,
+      "title": "Kamen Rider"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 291507,
+      "title": "The Body"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 64190,
+      "title": "Volle Kanne"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 265167,
+      "title": "ZIBB"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 17887,
+      "title": "7de Laan"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 62992,
+      "title": "DAS!"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 213375,
+      "title": "VisionQuest"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 57775,
+      "title": "Chibi Maruko-chan"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 108978,
+      "title": "Reacher"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1433,
+      "title": "American Dad!"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 65494,
+      "title": "The Crown"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 79744,
+      "title": "The Rookie"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 44006,
+      "title": "Chicago Fire"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 13945,
+      "title": "Gute Zeiten, schlechte Zeiten"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1431,
+      "title": "CSI: Crime Scene Investigation"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1871,
+      "title": "EastEnders"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 32415,
+      "title": "Conan"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1399,
+      "title": "Game of Thrones"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 81329,
+      "title": "Chronicles of the Sun"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2004,
+      "title": "Malcolm in the Middle"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 34307,
+      "title": "Shameless"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 15226,
+      "title": "C.I.D."
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1667,
+      "title": "Saturday Night Live"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 65701,
+      "title": "Good Mythical Morning"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 72879,
+      "title": "Tomorrow Is Ours"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 30983,
+      "title": "Detective Conan"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1695,
+      "title": "Monk"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4385,
+      "title": "The Colbert Report"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1636,
+      "title": "Top of the Pops"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 61933,
+      "title": "X Company"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2190,
+      "title": "South Park"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1911,
+      "title": "Bones"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 112470,
+      "title": "Ici tout commence"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 3497,
+      "title": "Moesha"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 37288,
+      "title": "Morgenmagazin"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 46952,
+      "title": "The Blacklist"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 14981,
+      "title": "The Late Late Show with Craig Ferguson"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 23915,
+      "title": "Markus Lanz"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 5092,
+      "title": "Infinite Challenge"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 65334,
+      "title": "Miraculous: Tales of Ladybug & Cat Noir"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 224,
+      "title": "Match of the Day"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 65270,
+      "title": "Radio Star"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1424,
+      "title": "Orange Is the New Black"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 124364,
+      "title": "FROM"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 764,
+      "title": "Midsomer Murders"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 15844,
+      "title": "A Kindred Spirit"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 14686,
+      "title": "Alles was zählt"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2912,
+      "title": "Jeopardy!"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2221,
+      "title": "The View"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 67744,
+      "title": "MINDHUNTER"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1396,
+      "title": "Breaking Bad"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 194766,
+      "title": "The Summer I Turned Pretty"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 221468,
+      "title": "Hollywood Squares"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 3091,
+      "title": "Family Affairs"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 50821,
+      "title": "Among Friends"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 10536,
+      "title": "The Mike Douglas Show"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 32692,
+      "title": "Blue Bloods"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1405,
+      "title": "Dexter"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 80318,
+      "title": "CentoVetrine"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4386,
+      "title": "Baywatch"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 693,
+      "title": "Desperate Housewives"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 67175,
+      "title": "Elena of Avalor"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 34860,
+      "title": "Ninja Boy Rantaro"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1220,
+      "title": "The Graham Norton Show"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 58841,
+      "title": "Chicago P.D."
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4419,
+      "title": "Real Time with Bill Maher"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 30984,
+      "title": "Bleach"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 303745,
+      "title": "Love in Disguise"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 39429,
+      "title": "You Hee-yeol's Sketchbook"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 65282,
+      "title": "Home Alone"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 4604,
+      "title": "Smallville"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 9912,
+      "title": "Passions"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1402,
+      "title": "The Walking Dead"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 85077,
+      "title": "The Chosen"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 42680,
+      "title": "Sítio do Picapau Amarelo"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 70672,
+      "title": "Men on a Mission"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 3034,
+      "title": "Scene of the Crime"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 12415,
+      "title": "Egoli: Place of Gold"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 2883,
+      "title": "Dark Shadows"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 79917,
+      "title": "Bares für Rares"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 60625,
+      "title": "Rick and Morty"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 14743,
+      "title": "El cor de la ciutat"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 62223,
+      "title": "The Late Late Show with James Corden"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 63809,
+      "title": "Camera Café"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 45140,
+      "title": "Teen Titans Go!"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 254630,
+      "title": "12 12 12"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 19885,
+      "title": "Sherlock"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 21144,
+      "title": "Cococinel"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 57532,
+      "title": "PAW Patrol"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1427,
+      "title": "Broadchurch"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 32726,
+      "title": "Bob's Burgers"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 27181,
+      "title": "Rote Rosen"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 40605,
+      "title": "Die Harald Schmidt Show"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 114863,
+      "title": "Mentiras verdaderas"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 8590,
+      "title": "Plus belle la vie"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 6809,
+      "title": "El hormiguero"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 121,
+      "title": "Doctor Who"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 52910,
+      "title": "Law of the Jungle"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1900,
+      "title": "LIVE with Kelly and Mark"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 99145,
+      "title": "The Thaw"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1620,
+      "title": "CSI: Miami"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1489,
+      "title": "Jimmy Kimmel Live!"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 204746,
+      "title": "The Jennifer Hudson Show"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 67192,
+      "title": "New Japan Pro Wrestling"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 111979,
+      "title": "Leute heute"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 13826,
+      "title": "Monkey"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 6060,
+      "title": "Kyunki Saas Bhi Kabhi Bahu Thi"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 3002,
+      "title": "The Benny Hill Show"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 1028,
+      "title": "Holby City"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 32798,
+      "title": "Hawaii Five-0"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 80748,
+      "title": "FBI"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 14658,
+      "title": "Survivor"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 103108,
+      "title": "MDR um 4"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 57911,
+      "title": "Doraemon"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 72896,
+      "title": "My Little Old Boy"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 12225,
+      "title": "Peppa Pig"
+    },
+    {
+      "media_type": "tv",
+      "tmdb_id": 45790,
+      "title": "JoJo's Bizarre Adventure"
+    }
+  ]
+}

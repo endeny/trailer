@@ -24,13 +24,16 @@ def load_plan(path, language):
     if not isinstance(items,list) or not 1 <= len(items) <= 200: raise ValueError('invalid_plan')
     identities, seen = [], set()
     for item in items:
-        if not isinstance(item,dict) or item.get('media_type') != 'movie' or type(item.get('tmdb_id')) is not int: raise ValueError('invalid_plan_identity')
-        validate('movie',item['tmdb_id'],language)
+        if not isinstance(item,dict) or item.get('media_type') not in ('movie','tv') or type(item.get('tmdb_id')) is not int: raise ValueError('invalid_plan_identity')
+        validate(item['media_type'],item['tmdb_id'],language)
         if item['tmdb_id'] in seen: raise ValueError('duplicate_identity')
         seen.add(item['tmdb_id'])
-        identities.append({'media_type':'movie','tmdb_id':item['tmdb_id'],'language':language})
+        identities.append({'media_type':item['media_type'],'tmdb_id':item['tmdb_id'],'language':language})
+    media_types = {item['media_type'] for item in identities}
+    if len(media_types) != 1: raise ValueError('mixed_plan_types')
+    kind = 'movies' if identities[0]['media_type']=='movie' else 'tv'
     digest = hashlib.sha256(json.dumps(identities,sort_keys=True).encode()).hexdigest()[:16]
-    return identities, f'popular-movies-{digest}-{language}'
+    return identities, f'popular-{kind}-{digest}-{language}'
 
 
 def read_json(s3,bucket,key):
@@ -53,7 +56,7 @@ def execute_item(item):
 def run_batch(s3,bucket,identities,batch_id,report_path,execute=execute_item,clock=time.monotonic):
     key=f'trailer-control/v1/batches/{batch_id}.json'
     old=read_json(s3,bucket,key)
-    if old and [v.get('tmdb_id') for v in old.get('items',[])] != [v['tmdb_id'] for v in identities]:
+    if old and [(v.get('media_type'),v.get('tmdb_id'),v.get('language')) for v in old.get('items',[])] != [(v['media_type'],v['tmdb_id'],v['language']) for v in identities]:
         raise ValueError('checkpoint_identity_mismatch')
     report=old or {'schema_version':1,'batch_id':batch_id,'created_at':now(),
                    'items':[{**item,'status':'pending','attempts':0} for item in identities]}
@@ -74,11 +77,11 @@ def run_batch(s3,bucket,identities,batch_id,report_path,execute=execute_item,clo
         if item['status'] in TERMINAL:continue
         if clock()-started >= BATCH_SECONDS:
             report.update(status='paused',pause_reason='time_budget');break
-        print(f"[{rank}/{len(identities)}] movie/{item['tmdb_id']}",flush=True)
-        item.update(status='pending',attempts=item['attempts']+1)
+        print(f"[{rank}/{len(identities)}] {item['media_type']}/{item['tmdb_id']}",flush=True)
+        item.update(status='pending',error=None,attempts=item['attempts']+1)
         checkpoint() # A cancelled runner can safely resume this identity.
         code=execute(item)
-        state=read_json(s3,bucket,f"trailers/v1/movie/{item['tmdb_id']}/{item['language']}/metadata.json") or {}
+        state=read_json(s3,bucket,f"trailers/v1/{item['media_type']}/{item['tmdb_id']}/{item['language']}/metadata.json") or {}
         # Never accept legacy R2 readiness as completion of an HF-first batch.
         status=state.get('status')
         if code==0 and status=='ready' and state.get('storage')=='hf':
@@ -117,7 +120,7 @@ def main():
             output.write(f"continue={'true' if report.get('pause_reason')=='time_budget' else 'false'}\n")
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as summary:
-            summary.write(f"## Popular movie HF prewarm\n\nBatch: `{batch_id}`\n\nState: `{report['status']}`; reason: `{report.get('pause_reason')}`\n\n")
+            summary.write(f"## Popular media HF prewarm\n\nBatch: `{batch_id}`\n\nState: `{report['status']}`; reason: `{report.get('pause_reason')}`\n\n")
             summary.write('\n'.join(f'- {key}: {value}' for key,value in report['counts'].items())+'\n')
     print(json.dumps({'batch_id':batch_id,'status':report['status'],'pause_reason':report.get('pause_reason'),'counts':report['counts']}))
     return 0 if report['status']=='completed' or report.get('pause_reason')=='time_budget' else 1

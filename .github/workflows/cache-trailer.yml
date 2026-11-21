@@ -79,7 +79,7 @@ jobs:
           cookie_path="$RUNNER_TEMP/trailer-cookies.txt"
           trap 'rm -f "$cookie_path"' EXIT
           if [ -n "$YOUTUBE_COOKIES" ]; then
-            printf '%s\n' "$YOUTUBE_COOKIES" > "$cookie_path"
+            python scripts/prepare_cookies.py --from-env --output "$cookie_path"
             export YOUTUBE_COOKIES_FILE="$cookie_path"
           fi
           unset YOUTUBE_COOKIES

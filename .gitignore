@@ -8,3 +8,6 @@ cookies.txt
 *.mp4
 *.part
 .venv/
+
+*cookie*.txt
+*cookie*.json

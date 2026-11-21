@@ -20,9 +20,17 @@ GET Worker ← R2 metadata / MP4 ← 完成后供 AVPlayer/MPV 播放
 | `R2_SECRET_ACCESS_KEY` | 上传必需 | 配套 S3 Secret Access Key |
 | `TMDB_TOKEN` | 推荐 | TMDB Read Access Token；无此项时 en/de 使用 KinoCheck |
 | `KINOCHECK_API_KEY` | 可选 | 提升 KinoCheck 请求额度 |
-| `YOUTUBE_COOKIES` | 可选 | Netscape 格式 cookies.txt 全文，用于确实需要认证的情况 |
+| `YOUTUBE_COOKIES` | 可选 | 仅含 YouTube 域名的 Netscape Cookie，用于确实需要认证的情况 |
 
 Actions Variable `R2_BUCKET` 默认 `media`；如果改名，须同步修改 Worker 的 `wrangler.toml`。
+
+GitHub 单个 Secret 限制 48 KB。浏览器全站导出经常超限，不要直接粘贴整份文件。使用辅助工具只保留 YouTube Cookie，并直接通过 stdin 上传 Secret：
+
+```bash
+python3 scripts/prepare_cookies.py /absolute/path/cookies.txt --upload --repo endeny/trailer
+```
+
+支持 Netscape 和常见浏览器 Cookie JSON；保留 HttpOnly 标志、按域名/路径/名称去重，排除其他网站 Cookie，过滤后仍超限则停止。工具只输出条数和字节数，不打印内容、不修改原文件。工作流也会重新过滤 Secret 后才生成 mode-0600 临时文件。
 
 Cookie 不是永久凭据，也不保证消除 YouTube 的 IP/Token 验证。工作流包含 yt-dlp 的 EJS 依赖与 Deno；Actions 默认启动仅绑定 runner 回环地址的 `bgutil-ytdlp-pot-provider:2.0.2`，通过 mweb 客户端使用 PO Token。Token 仍不保证解决 IP 风控；本地验证默认不启用此服务。若 GitHub runner 下载被拒绝，应按实际错误维护下载器/认证或改用 self-hosted runner。不要将 Cookie、密钥或下载文件提交到 public 仓库，不上传原始下载日志作为 artifact。
 
@@ -140,3 +148,5 @@ python3 -m venv .venv
 ## 实测记录
 
 见 [2026-11-21 验证记录](doc/VALIDATION.md)，明确区分代码检查通过与真实下载/R2 未完成的部分。
+
+当前已部署的只读服务：[Worker health](https://iplay-trailer-cache.ourfor.workers.dev/health)。R2 使用现有 `media` bucket；仅操作 `trailers/v1/` 前缀。自动 POST 触发还需配置 Worker 的 `GITHUB_TOKEN` 和 `SUBMIT_TOKEN`。

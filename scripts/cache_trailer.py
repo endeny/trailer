@@ -35,7 +35,10 @@ def request_json(url, headers=None):
     request = urllib.request.Request(url, headers={"User-Agent": "iPlay-Trailer-Cache/1.0", **(headers or {})})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
-            return json.load(response)
+            data = json.load(response)
+            if not isinstance(data, dict) or data.get("error"):
+                raise JobError("source_api_failed")
+            return data
     except urllib.error.HTTPError as error:
         if error.code == 404:
             return {}
@@ -79,7 +82,7 @@ def resolve(media_type, tmdb_id, language):
             headers = {"X-Api-Key": os.environ["KINOCHECK_API_KEY"], "X-Api-Host": "api.kinocheck.com"}
         path = "movies" if media_type == "movie" else "shows"
         try:
-            data = request_json(f"https://api.kinocheck.com/{path}?tmdb_id={tmdb_id}&language={language}&categories=Trailer,Teaser", headers)
+            data = request_json(f"https://api.kinocheck.com/{path}?tmdb_id={tmdb_id}&language={language}", headers)
             candidates.extend(kinocheck_candidates(data, language))
         except JobError:
             source_failed = True
@@ -232,6 +235,9 @@ def main():
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
+    except JobError as error:
+        print(f"Trailer job failed: {error}")
+        raise SystemExit(1) from None
     except Exception:
         print("Trailer job could not initialize; check inputs, R2 configuration and permissions.")
         raise SystemExit(1) from None

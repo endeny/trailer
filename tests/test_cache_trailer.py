@@ -2,6 +2,7 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 from botocore.exceptions import ClientError
 
 spec = importlib.util.spec_from_file_location('cache_trailer', Path(__file__).parents[1] / 'scripts/cache_trailer.py')
@@ -36,6 +37,13 @@ class Pipeline(unittest.TestCase):
                   for kind, lang, key, official in [('Teaser', 'en', '12345678901', True), ('Trailer', 'de', '12345678902', True), ('Trailer', 'en', '12345678903', True)]]
         self.assertEqual([v['youtube_id'] for v in job.tmdb_candidates({'results': videos}, 'en')], ['12345678903', '12345678901'])
         self.assertEqual(job.kinocheck_candidates({'trailer': {'youtube_video_id': '12345678901', 'language': 'de', 'categories': ['Trailer']}}, 'en'), [])
+
+    def test_kinocheck_uses_unfiltered_endpoint_then_filters_locally(self):
+        data = {'trailer': {'youtube_video_id': '12345678901', 'language': 'en', 'categories': ['Trailer']}}
+        with patch.dict(job.os.environ, {'TMDB_TOKEN': '', 'KINOCHECK_API_KEY': ''}), patch.object(job, 'request_json', return_value=data) as fetch:
+            result = job.resolve('movie', '299534', 'en')
+        self.assertEqual(result[0]['youtube_id'], '12345678901')
+        self.assertNotIn('categories=', fetch.call_args.args[0])
 
     def test_cached_media_does_not_call_external_source(self):
         s3 = S3(True)

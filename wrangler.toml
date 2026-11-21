@@ -1,6 +1,8 @@
 name = "iplay-trailer-cache"
 main = "worker/index.mjs"
 compatibility_date = "2026-11-01"
+routes = [{ pattern = "trailers.saltpi.cn/media/*", zone_id = "ddb7852a55eb01228aa578d7a0e17c81" }]
+workers_dev = true
 
 [vars]
 GITHUB_REPOSITORY = "endeny/trailer"
@@ -10,7 +12,7 @@ CDN_BASE_URL = "https://trailers.saltpi.cn"
 DAILY_DOWNLOAD_LIMIT = "8"
 STORAGE_BACKEND = "hf"
 HF_REPO_ID = "saltpi/iplay-trailers"
-PUBLIC_MEDIA_ORIGIN = "https://iplay-trailer-cache.ourfor.workers.dev"
+PUBLIC_MEDIA_ORIGIN = "https://trailers.saltpi.cn"
 DEFAULT_TRAILER_QUALITY = "720p"
 
 [[r2_buckets]]

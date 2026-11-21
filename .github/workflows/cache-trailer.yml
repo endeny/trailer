@@ -1,0 +1,78 @@
+name: Cache media trailer
+run-name: Trailer ${{ inputs.media_type }}/${{ inputs.tmdb_id }}/${{ inputs.language }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      media_type:
+        description: TMDB media type
+        type: choice
+        options: [movie, tv]
+        default: movie
+        required: true
+      tmdb_id:
+        description: Positive TMDB ID
+        type: string
+        required: true
+      language:
+        description: Two-letter video language (en/de work without a TMDB token)
+        type: string
+        default: en
+        required: true
+
+      dry_run:
+        description: Download and encode only, without R2 credentials or upload
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trailer-${{ inputs.media_type }}-${{ inputs.tmdb_id }}-${{ inputs.language }}
+  cancel-in-progress: false
+
+jobs:
+  cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install downloader and encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install -r requirements.txt
+      - name: Download and upload trailer
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          MEDIA_TYPE: ${{ inputs.media_type }}
+          TMDB_ID: ${{ inputs.tmdb_id }}
+          VIDEO_LANGUAGE: ${{ inputs.language }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ vars.R2_BUCKET || 'iplay-trailers' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+          KINOCHECK_API_KEY: ${{ secrets.KINOCHECK_API_KEY }}
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+        run: |
+          umask 077
+          cookie_path="$RUNNER_TEMP/trailer-cookies.txt"
+          trap 'rm -f "$cookie_path"' EXIT
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            printf '%s\n' "$YOUTUBE_COOKIES" > "$cookie_path"
+            export YOUTUBE_COOKIES_FILE="$cookie_path"
+          fi
+          unset YOUTUBE_COOKIES
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          python scripts/cache_trailer.py --media-type "$MEDIA_TYPE" --tmdb-id "$TMDB_ID" --language "$VIDEO_LANGUAGE" "${args[@]}"

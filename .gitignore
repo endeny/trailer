@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+__pycache__/
+*.pyc
+cookies.txt
+*.mp4
+*.part
+.venv/

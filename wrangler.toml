@@ -1,0 +1,14 @@
+name = "iplay-trailer-cache"
+main = "worker/index.mjs"
+compatibility_date = "2026-11-01"
+
+[vars]
+GITHUB_REPOSITORY = "endeny/trailer"
+GITHUB_WORKFLOW = "cache-trailer.yml"
+GITHUB_REF = "main"
+
+[[r2_buckets]]
+binding = "TRAILERS"
+bucket_name = "iplay-trailers"
+
+# Secrets: SUBMIT_TOKEN, GITHUB_TOKEN (fine-grained, target repo Actions: write)

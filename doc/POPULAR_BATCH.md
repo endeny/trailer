@@ -47,3 +47,5 @@ gh workflow run warm-popular.yml --repo endeny/trailer -f language=en
 原 HF 作业将下载、转码、提交全部放在全局租约内，即使开两个 runner 也会串行等待。现在以 type/id/language 身份锁防重复，下载/编码并行；仅实际上传前的容量检查与原子 HF commit 共享全局短锁，避免并发超预算或提交竞争。两个批次各自顺序执行，因此正常为电影一部与剧集一部并行，不将 400 个视频同时抓取。
 
 验证：42 项 Python +19 项 Worker 测试通过。新增真实双线程屏障测试要求电影/TV 同时进入下载，且提交必须持全局锁；另覆盖 TV 元数据路径、独立检查点、name 字段与 TMDB 默认无 KinoCheck 请求。运行 ID、实际结果及代码 hash 在后续归档补齐。
+
+实际代码 `48ddd41`，电影续跑 [44886290089](https://github.com/endeny/trailer/actions/runs/44886290089)，电视剧新增 [44886294451](https://github.com/endeny/trailer/actions/runs/44886294451)；两条 job 已同时进入 in_progress。movie 原检查点保持，停旧 run 后确认无其他下载任务才清除其全局遗留锁，不删除视频。

@@ -142,3 +142,15 @@ Cloudflare 已有登录态，但首次列举 bucket 返回 `10001`；再次请�
 - 当前快照已完成 2 部新视频（1368337、1263337），均含原生 720p 与 1080p；批次仍在运行，不是 200 部均已完成。快照中的 11 个 failed 是旧凭据留下、尚待续跑重试的历史结果，187 个 pending 尚在队列内。持久 R2 状态优先于本归档快照：[脱敏批量报告](evidence/popular-batch-20261121.json)。
 - 首部 1368337 真实 HF CDN 检查：720p H.264 1280×720 + AAC，27,459,259 字节；1080p H.264 1920×1080 + AAC，65,670,301 字节。两档稳定域名地址均返回 HF 302/no-store，文件 CDN Range 均 206，ffprobe 通过。[脱敏双档证据](evidence/popular-first-dual-quality-20261121.json)。这次已经取得真实 1080p，不再只是单测覆盖。
 - 最新本地 37 项 Python + 19 项 Worker 检查通过；CI [44885397456](https://github.com/endeny/trailer/actions/runs/44885397456) 成功。批量任务不需要重新部署客户端或 Worker。
+
+
+## 2026-11-21T16:45:48+08:00：TMDB-only 与电影/剧集 200+200 并行任务
+
+- 用户要求直接使用 TMDB，并增加热门前 200 部电视剧、并行提交。基线 `20c4192`，代码 `48ddd41`。
+- TMDB 一直是候选优先来源；本次关闭默认 KinoCheck 补充请求，生产工作流仅使用 TMDB。独立 Token 缺省时经既有 tmdb.saltpi.cn 调用 videos；未更改客户端或代理鉴权。
+- 已生成 `data/popular-tv-20261121.json`：TMDB `/3/tv/popular` 前 200 个唯一 TV ID。movie/tv 名单、状态路径、检查点、concurrency group 分离，自动续跑保留 media_type。
+- 原全局锁覆盖下载/编码，两个 runner 无法真正并行。改为身份锁覆盖单媒体，全局锁只覆盖容量检查与 HF commit，保证并行下载但提交预算仍串行。双线程测试要求两个类型同时进入下载，并检查上传持有全局锁。
+- 42 项 Python +19 项 Worker 测试通过；CI [44886264846](https://github.com/endeny/trailer/actions/runs/44886264846) 成功，工作流 YAML 解析通过。
+- 为应用并行锁升级，停止旧电影 run 44885399820，确认 completed/cancelled 且没有其他下载任务后，清理其遗留全局锁；保留所有视频与批量检查点。
+- 电影续跑 [44886290089](https://github.com/endeny/trailer/actions/runs/44886290089)，电视剧新增 [44886294451](https://github.com/endeny/trailer/actions/runs/44886294451)。已观察到两条 run/job 同时 in_progress（开始时间分别 08:44:40Z、08:44:43Z），不是相同 concurrency group 下排队。
+- 当前为提交并运行中的 200+200 队列，不能表述为 400 个预告已下载完成。原已完成 HF 视频继续命中缓存；720p/1080p 与 HF 优先规则不变。

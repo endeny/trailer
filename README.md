@@ -110,11 +110,11 @@ curl -X POST \
 
 - R2 key：`trailers/v1/{movie|tv}/{tmdb_id}/{language}/video.mp4`，同目录 `metadata.json` 记录状态与来源。
 - 缓存命中时跳过解析/下载。每个媒体与语言的 Actions concurrency group 相同，运行中任务不被新提交取消。GitHub 对同组 pending run 有队列限制；本方案不保证每次重复提交都单独执行。
-- Worker 的 R2 pending 状态可减少重复 dispatch，但不是原子分布式锁；同时首次提交仍可能产生多个 run，实际下载由 concurrency 串行并再次检查缓存。
-- Worker pending/running 30 分钟未更新视为 expired，可重新提交；failed/not_found 15 分钟内限制重试。Actions 被强制取消、安装依赖失败或 R2 无法访问时可能无法写失败状态，由超时恢复。
+- Worker 用 R2 ETag 条件写原子占位，同一身份并发提交仅调度一次；每日自动下载默认最多 8 个（Asia/Shanghai），同样使用 R2 条件写计数。
+- Worker pending/running 30 分钟未更新视为 expired，可重新提交；失败退避 6 小时，无候选退避 7 天。Actions 被强制取消、安装依赖失败或 R2 无法访问时可能无法写失败状态，由超时恢复。
 - 尽量按请求语言选择官方 Trailer，再选 Teaser；最多尝试 3 个去重后的候选。不会拿其他语言、电影或演示片冒充。
 - 最长 5 分钟，下载格式不超过 720p，下载单个文件上限 150 MiB；FFmpeg 输出 H.264/AAC、yuv420p、faststart，最终 MP4 上限 40 MiB。输入未知时长/直播会拒绝。
-- **本版本没有总容量自动淘汰或硬配额**。单文件限制不等于总量限制。可在 R2 配置 30 天对象生命周期，或之后加入容量预算管理。不要将 Actions artifacts 当作视频仓库。
+- 下载前和上传前检查整个 `media` 桶的 8 GB 预算；通过有超时恢复的 R2 条件租约串行上传，超限停止新增缓存，保留现有视频。仅 `trailers/v1/` 的未完成分片上传在 1 天后清理，不删除已完成视频。其他应用写入不受本服务限制。
 - 不自动反复重试认证错误。公开状态只记录 `youtube_auth_required`、`youtube_token_required`、`youtube_access_denied` 等固定错误码；原始下载输出不进入 public 日志。
 - Public 仓库不代表无限计算资源；此工作流用于项目预告片的低频预热。大量任务、持续抓取或部署更多 runner 前，需按实际 GitHub Actions 配额和使用政策评估。
 
@@ -158,3 +158,12 @@ python3 -m venv .venv
 - [720p MP4 播放示例](https://iplay-trailer-cache.ourfor.workers.dev/media/movie/299534/en.mp4)
 
 仅由可信后端或管理员持有提交凭据；本地生成的提交凭据副本位于被 Git 忽略的 `.dev.vars`（0600），未写入本 README 或仓库历史。
+
+
+## iPlay 生产接入与 CDN
+
+已绑定 `https://trailers.saltpi.cn` 到 R2 `media`，沿用 saltpi.cn 的 Free Website 计划。视频 URL 直接对应 R2 对象，生产 Range 已实测 206 / CF-Cache-Status: HIT；不依赖每次播放都经 Worker 读取 R2。对象缓存头为浏览器 1 天、边缘 30 天。旧 `/media/...` 地址做可缓存重定向。
+
+现有 `tmdb.saltpi.cn` 后端通过 service binding 查此服务，并继续向客户端返回原有 `trailer_url` 字段。没有修改客户端，也没有把 GitHub/R2/Cookie 凭据交给客户端。详情与热榜/热映前两个候选可后台预热；失败保留海报。原始 TMDB 数据长缓存、URL 响应 60 秒缓存、就绪身份 6 小时缓存，未就绪身份短缓存；每个响应最多查 18 个媒体身份，避免大量二次请求。
+
+自动任务每天 8 个限额不限制管理员显式手动运行 Actions；存储检查适用于工作流上传。没有启用付费 Stream、Cache Reserve、Durable Objects、KV 或 Queues。R2 和 Workers 额度由账号共享，其他应用的用量不在本服务控制范围。

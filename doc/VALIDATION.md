@@ -105,3 +105,15 @@ Cloudflare 已有登录态，但首次列举 bucket 返回 `10001`；再次请�
 9. 用户最初把 GITHUB_TOKEN 建为普通变量；Cloudflare 不允许同名 plain_text 直接 secret put，报 10053。在不打印凭据的情况下保留同一值、移除普通绑定后配置为加密 Secret。最终 Worker Secrets 为 GITHUB_TOKEN 与 SUBMIT_TOKEN，均未提交到 public 仓库。
 
 后续仍需按实际使用维护 Cookie 有效期、下载器版本和缓存容量；本次没有添加全桶生命周期、删除现有 media 内容或修改 iPlay 客户端。媒体数据仅使用 trailers/v1 前缀。
+
+
+## 2026-11-21 CDN 与 iPlay 后端接入
+
+- 代码基线：3676c0b；CDN/预算修复提交：4a291aa41e57ea92743a8478920842af000db564。
+- R2 自定义域名 trailers.saltpi.cn 已 active，SSL active、TLS >=1.2，盐派主域为 Free Website 计划；r2.dev 保持关闭。
+- 生产 GET Range 从 MISS 变为 HIT，Age 增长，正确返回 206 与 Content-Range。奥本海默缓存头为 public,max-age=86400,s-maxage=2592000。域名直接对应 R2 对象，旧 Worker 播放 URL 重定向。
+- Worker 新增鉴权的 internal/resolve 批量查询，R2 ETag 原子占位去重，每日 8 个自动任务的原子预算；默认失败 6 小时/无候选 7 天退避。
+- 上传前 8 GB 全桶检查与可恢复 R2 上传租约；真实缓存元数据刷新任务 44881856895 与 44881862506 成功，验证条件写租约、全桶列举、同对象 copy 更新缓存头。仅中断分片在 trailers/v1 前缀配置 1 天清理，既有视频与默认全桶规则保留。
+- 12 项 Worker +17 项 Python 测试通过，GitHub 检查 44881814407 成功。iPlay.Server 配套 8 项测试通过，生产 movie/299534 与 movie/872585 的 trailer_url 已指向 CDN，人物数据不注入字段。
+- 热映页请求确实后台触发 1263337 与 1400837 的 Actions；两者仍遭遇 YouTube 验证限制，保持 null 和退避。不能把这两次失败宣称为所有影片均可下载。
+- 客户端代码没有因本次接入变更。具体 iPlay.Server 代码与独立提交追溯由其 doc/issues/20261121_trailer_cdn_integration.md 维护。

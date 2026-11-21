@@ -309,6 +309,17 @@ def run_job(s3, bucket, media_type, tmdb_id, language, resolver=resolve, downloa
         return 1
 
 
+def create_s3():
+    for name in ("R2_ACCOUNT_ID", "R2_BUCKET", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        if not os.environ.get(name):
+            raise JobError("missing_r2_configuration")
+    if not re.fullmatch(r"[a-f0-9]{32}", os.environ["R2_ACCOUNT_ID"]):
+        raise JobError("invalid_r2_account_id")
+    import boto3
+    from botocore.config import Config
+    return boto3.client("s3", endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com", region_name="auto",
+                      config=Config(retries={"max_attempts": 3, "mode": "standard"}, connect_timeout=15, read_timeout=60))
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--media-type", required=True)
@@ -336,15 +347,7 @@ def main():
                 print(f"Candidate failed: {last_error}")
         print(f"Download verification failed: {last_error}")
         return 1
-    for name in ("R2_ACCOUNT_ID", "R2_BUCKET", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
-        if not os.environ.get(name):
-            raise JobError("missing_r2_configuration")
-    if not re.fullmatch(r"[a-f0-9]{32}", os.environ["R2_ACCOUNT_ID"]):
-        raise JobError("invalid_r2_account_id")
-    import boto3
-    from botocore.config import Config
-    s3 = boto3.client("s3", endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com", region_name="auto",
-                      config=Config(retries={"max_attempts": 3, "mode": "standard"}, connect_timeout=15, read_timeout=60))
+    s3 = create_s3()
     backend = os.environ.get("STORAGE_BACKEND", "hf")
     if backend == "hf":
         from hf_job import run_hf_job

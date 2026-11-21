@@ -174,3 +174,13 @@ python3 -m venv .venv
 自动任务每天 8 个限额不限制管理员显式手动运行 Actions；存储检查适用于工作流上传。没有启用付费 Stream、Cache Reserve、Durable Objects、KV 或 Queues。R2 和 Workers 额度由账号共享，其他应用的用量不在本服务控制范围。
 
 HF 优先存储、双清晰度与实际部署验证见 [HF 实现与边界](doc/HUGGINGFACE_ASSESSMENT.md)。HF 路径使用其文件分发服务；不把 HF 的限流/免费额度称为无限 CDN，也不额外购买 Cloudflare 视频服务。
+
+## 热门 200 部批量预热
+
+见 [批量运行与断点续接](doc/POPULAR_BATCH.md)。当日热门电影前 200 个 ID 已固定，英语预告默认运行：
+
+```bash
+gh workflow run warm-popular.yml --repo endeny/trailer -f language=en
+```
+
+顺序下载、HF 缓存复用、R2 持久进度。连续三部认证失败暂停，其余保留待处理；修复后重跑续接。Actions Summary 与报告分别显示成功、无预告、失败、待处理，不将“入队 200”描述为“下载完成 200”。

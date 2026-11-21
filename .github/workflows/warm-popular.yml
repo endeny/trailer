@@ -1,0 +1,86 @@
+name: Prewarm popular 200 trailers
+run-name: Popular 200 movie trailers / ${{ inputs.language }}
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: Trailer language
+        type: choice
+        options: [en, de]
+        default: en
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: popular-trailers-${{ inputs.language }}
+  cancel-in-progress: false
+jobs:
+  prewarm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install downloader and encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install -r requirements.txt
+      - name: Start PO Token provider
+        run: |
+          docker run --name trailer-pot -d --init \
+            -p 127.0.0.1:4416:4416 brainicism/bgutil-ytdlp-pot-provider:2.0.2
+          for attempt in {1..30}; do
+            if curl --silent --output /dev/null http://127.0.0.1:4416; then break; fi
+            sleep 1
+          done
+          curl --silent --output /dev/null http://127.0.0.1:4416
+      - name: Sequential HF prewarm with durable checkpoints
+        id: warm
+        env:
+          STORAGE_BACKEND: hf
+          HF_REPO_ID: ${{ vars.HF_REPO_ID || 'saltpi/iplay-trailers' }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          YOUTUBE_PO_PROVIDER: "true"
+          VIDEO_LANGUAGE: ${{ inputs.language }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ vars.R2_BUCKET || 'media' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+          KINOCHECK_API_KEY: ${{ secrets.KINOCHECK_API_KEY }}
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+        run: |
+          umask 077
+          cookie_path="$RUNNER_TEMP/trailer-cookies.txt"
+          trap 'rm -f "$cookie_path"' EXIT
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            python scripts/prepare_cookies.py --from-env --output "$cookie_path"
+            export YOUTUBE_COOKIES_FILE="$cookie_path"
+          fi
+          unset YOUTUBE_COOKIES
+          python scripts/warm_popular.py --plan data/popular-movies-20261121.json --language "$VIDEO_LANGUAGE" --report "$RUNNER_TEMP/popular-report.json"
+      - name: Save safe batch report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: popular-batch-report
+          path: ${{ runner.temp }}/popular-report.json
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Continue after runner time budget
+        if: steps.warm.outputs.continue == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VIDEO_LANGUAGE: ${{ inputs.language }}
+        run: gh workflow run warm-popular.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f language="$VIDEO_LANGUAGE"
+      - name: Stop PO Token provider
+        if: always()
+        run: docker rm -f trailer-pot >/dev/null 2>&1 || true

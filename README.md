@@ -167,3 +167,5 @@ python3 -m venv .venv
 现有 `tmdb.saltpi.cn` 后端通过 service binding 查此服务，并继续向客户端返回原有 `trailer_url` 字段。没有修改客户端，也没有把 GitHub/R2/Cookie 凭据交给客户端。详情与热榜/热映前两个候选可后台预热；失败保留海报。原始 TMDB 数据长缓存、URL 响应 60 秒缓存、就绪身份 6 小时缓存，未就绪身份短缓存；每个响应最多查 18 个媒体身份，避免大量二次请求。
 
 自动任务每天 8 个限额不限制管理员显式手动运行 Actions；存储检查适用于工作流上传。没有启用付费 Stream、Cache Reserve、Durable Objects、KV 或 Queues。R2 和 Workers 额度由账号共享，其他应用的用量不在本服务控制范围。
+
+HF 扩容与双清晰度的官方文档评估见 [Hugging Face 可行性](doc/HUGGINGFACE_ASSESSMENT.md)；当前尚未迁移 HF 或启用 1080p。

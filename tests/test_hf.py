@@ -73,7 +73,6 @@ class HF(unittest.TestCase):
             self.assertEqual(list(variants),['720p','1080p'])
             self.assertEqual(variants['1080p']['height'],1080)
 
-if __name__=='__main__':unittest.main()
 
 class Migration(unittest.TestCase):
     def test_youtube_auth_failure_migrates_existing_real_identity_without_upscaling(self):
@@ -96,3 +95,5 @@ class Migration(unittest.TestCase):
                           downloader=Mock(side_effect=JobError('youtube_auth_required')),refresh=True)
         self.assertEqual(result,1);self.assertEqual(s3.states[-1]['status'],'ready')
         self.assertEqual(s3.states[-1]['hf_revision'],'b'*40)
+
+if __name__=='__main__':unittest.main()

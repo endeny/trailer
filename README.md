@@ -54,6 +54,8 @@ gh workflow run cache-trailer.yml --repo endeny/trailer \
 
 也可在 Actions → Cache media trailer → Run workflow 手动输入。
 
+已有 HF 缓存默认跳过下载；升级迁移来的 720p 可显式传 `-f refresh=true`。刷新失败保留旧 HF 播放。YouTube 不可用时，只迁移同一身份既有的真实 R2 视频到 HF，记录 `source=existing_r2`，不会伪造 1080p。
+
 ## 3. R2 与 Worker
 
 需先在 Cloudflare 开通 R2（可能要求绑定付款方式），使用 Standard 存储：

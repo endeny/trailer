@@ -51,7 +51,8 @@ def run_hf_job(s3, bucket, media_type, tmdb_id, language, *, store=None, resolve
                 print('HF cache hit; download skipped.')
                 return 0
             store.ensure_capacity(sum(VARIANT_LIMITS.values()))
-            publish('running')
+            if not cached:
+                publish('running')
             candidates = resolver(media_type, tmdb_id, language)
             if not candidates and cached:
                 raise JobError('no_matching_trailer')

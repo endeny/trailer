@@ -136,3 +136,7 @@ python3 -m venv .venv
 - [yt-dlp PO Token](https://github.com/yt-dlp/yt-dlp/wiki/PO-Token-Guide)
 - [R2 Workers API](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
 - [R2 定价](https://developers.cloudflare.com/r2/pricing/)
+
+## 实测记录
+
+见 [2026-11-21 验证记录](doc/VALIDATION.md)，明确区分代码检查通过与真实下载/R2 未完成的部分。

@@ -22,7 +22,7 @@ GET Worker ← R2 metadata / MP4 ← 完成后供 AVPlayer/MPV 播放
 | `KINOCHECK_API_KEY` | 可选 | 提升 KinoCheck 请求额度 |
 | `YOUTUBE_COOKIES` | 可选 | Netscape 格式 cookies.txt 全文，用于确实需要认证的情况 |
 
-Actions Variable `R2_BUCKET` 默认 `iplay-trailers`；如果改名，须同步修改 Worker 的 `wrangler.toml`。
+Actions Variable `R2_BUCKET` 默认 `media`；如果改名，须同步修改 Worker 的 `wrangler.toml`。
 
 Cookie 不是永久凭据，也不保证消除 YouTube 的 IP/Token 验证。工作流包含 yt-dlp 的 EJS 依赖与 Deno；Actions 默认启动仅绑定 runner 回环地址的 `bgutil-ytdlp-pot-provider:2.0.2`，通过 mweb 客户端使用 PO Token。Token 仍不保证解决 IP 风控；本地验证默认不启用此服务。若 GitHub runner 下载被拒绝，应按实际错误维护下载器/认证或改用 self-hosted runner。不要将 Cookie、密钥或下载文件提交到 public 仓库，不上传原始下载日志作为 artifact。
 
@@ -51,7 +51,7 @@ gh workflow run cache-trailer.yml --repo endeny/trailer \
 ```bash
 npm ci
 npx wrangler login
-npx wrangler r2 bucket create iplay-trailers
+npx wrangler r2 bucket create media
 ```
 
 若已有同名 bucket，直接复用，不重复创建。创建限定该 bucket 的 S3 API 密钥并填入上面的 Actions Secrets。不要把 Cloudflare 全局 API Key 当作 R2 S3 密钥。

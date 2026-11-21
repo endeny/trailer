@@ -68,7 +68,7 @@ jobs:
           TMDB_ID: ${{ inputs.tmdb_id }}
           VIDEO_LANGUAGE: ${{ inputs.language }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ vars.R2_BUCKET || 'iplay-trailers' }}
+          R2_BUCKET: ${{ vars.R2_BUCKET || 'media' }}
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}

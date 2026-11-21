@@ -9,6 +9,6 @@ GITHUB_REF = "main"
 
 [[r2_buckets]]
 binding = "TRAILERS"
-bucket_name = "iplay-trailers"
+bucket_name = "media"
 
 # Secrets: SUBMIT_TOKEN, GITHUB_TOKEN (fine-grained, target repo Actions: write)

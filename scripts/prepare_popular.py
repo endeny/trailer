@@ -2,22 +2,16 @@
 """Snapshot the TMDB popular movie list through iPlay's existing metadata API."""
 import argparse
 import datetime as dt
-import hashlib
 import json
 from pathlib import Path
-import time
 import urllib.parse
 import urllib.request
-import uuid
 
 
 def popular_page(page):
     path = '/3/movie/popular'
-    nonce, stamp = str(uuid.uuid4()), str(int(time.time()*1000))
-    trace = hashlib.sha256(f'GET:{path}:nonce={nonce}:time={stamp}:body=none'.encode()).hexdigest()
-    headers = {'User-Agent':'iPlay/1.0', 'X-iPlay-Client-Platform':'ios', 'X-iPlay-Client-Version':'1.0',
-               'X-iPlay-Client-Request-ID':nonce, 'X-iPlay-Client-Timestamp':stamp,
-               'X-iPlay-Attest-Mode':'simulated', 'X-iPlay-Attest-Trace':trace}
+    from tmdb_proxy import headers as proxy_headers
+    headers = proxy_headers(path)
     url = 'https://tmdb.saltpi.cn'+path+'?'+urllib.parse.urlencode({'language':'en-US','page':page})
     with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=45) as response:
         return json.load(response)

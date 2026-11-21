@@ -82,6 +82,17 @@ def resolve(media_type, tmdb_id, language):
             candidates.extend(tmdb_candidates(data, language))
         except JobError:
             source_failed = True
+    proxy = os.environ.get("TMDB_PROXY_URL", "")
+    if not token and proxy:
+        if proxy != "https://tmdb.saltpi.cn":
+            raise JobError("invalid_tmdb_proxy")
+        from tmdb_proxy import headers as proxy_headers
+        path = f"/3/{media_type}/{tmdb_id}/videos"
+        try:
+            data = request_json(f"{proxy}{path}?language={language}", proxy_headers(path))
+            candidates.extend(tmdb_candidates(data, language))
+        except JobError:
+            source_failed = True
     if language in ("en", "de"):
         headers = {}
         if os.environ.get("KINOCHECK_API_KEY"):
@@ -92,7 +103,7 @@ def resolve(media_type, tmdb_id, language):
             candidates.extend(kinocheck_candidates(data, language))
         except JobError:
             source_failed = True
-    if not token and language not in ("en", "de"):
+    if not token and not proxy and language not in ("en", "de"):
         raise JobError("tmdb_token_required_for_language")
     if not candidates and source_failed:
         raise JobError("source_api_failed")
@@ -181,6 +192,8 @@ def download(candidate, directory):
         except JobError as error:
             last_error = error
             print(f"Download profile {client} failed: {error}")
+            if str(error) == "youtube_cookies_expired":
+                raise
     raise last_error
 
 

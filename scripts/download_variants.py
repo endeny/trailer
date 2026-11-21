@@ -49,4 +49,5 @@ def download_variants(candidate, directory, command, error_type):
         except error_type as error:
             last_error = error
             print(f'Download profile {client} failed: {error}')
+            if str(error) == 'youtube_cookies_expired': raise
     raise last_error

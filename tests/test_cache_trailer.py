@@ -129,4 +129,19 @@ class Pipeline(unittest.TestCase):
         self.assertEqual(s3.uploads, [])
 
 
+
+class TMDBProxy(unittest.TestCase):
+    def test_existing_proxy_resolves_videos_without_an_extra_tmdb_secret(self):
+        video={'site':'YouTube','type':'Trailer','iso_639_1':'en','key':'12345678901','official':True}
+        with patch.dict(job.os.environ, {'TMDB_TOKEN':'','TMDB_PROXY_URL':'https://tmdb.saltpi.cn'}),patch.object(job,'request_json',side_effect=[{'results':[video]},{}]) as fetch:
+            result=job.resolve('movie','1726','en')
+        self.assertEqual(result[0]['source'],'tmdb');self.assertEqual(result[0]['youtube_id'],'12345678901')
+        self.assertIn('/3/movie/1726/videos',fetch.call_args_list[0].args[0])
+        self.assertIn('X-iPlay-Attest-Trace',fetch.call_args_list[0].args[1])
+
+    def test_expired_cookie_does_not_retry_other_download_profiles(self):
+        with tempfile.TemporaryDirectory() as temp,patch.dict(job.os.environ,{'YOUTUBE_PO_PROVIDER':'true'}),patch.object(job,'download_with_client',side_effect=job.JobError('youtube_cookies_expired')) as download:
+            with self.assertRaisesRegex(job.JobError,'youtube_cookies_expired'):job.download({},Path(temp))
+            self.assertEqual(download.call_count,1)
+
 if __name__ == '__main__': unittest.main()

@@ -57,6 +57,10 @@ def run_batch(s3,bucket,identities,batch_id,report_path,execute=execute_item,clo
         raise ValueError('checkpoint_identity_mismatch')
     report=old or {'schema_version':1,'batch_id':batch_id,'created_at':now(),
                    'items':[{**item,'status':'pending','attempts':0} for item in identities]}
+    if report.get('resolver_version') != 'tmdb-proxy-v1':
+        for item in report['items']:
+            if item['status']=='not_found':item.update(status='pending',error=None)
+    report['resolver_version']='tmdb-proxy-v1'
     report.update(status='running',run_id=os.environ.get('GITHUB_RUN_ID'),pause_reason=None)
     started, auth_failures=clock(),0
     def checkpoint():

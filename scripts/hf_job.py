@@ -76,6 +76,7 @@ def run_hf_job(s3, bucket, media_type, tmdb_id, language, *, store=None, resolve
                 except JobError as error:
                     last_error = str(error)
                     print(f'Candidate failed: {last_error}')
+                    if last_error == 'youtube_cookies_expired': break
             if cached:
                 raise JobError(last_error)
             migrated = migrate_existing(store)

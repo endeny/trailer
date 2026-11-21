@@ -24,7 +24,7 @@ GET Worker ← R2 metadata / MP4 ← 完成后供 AVPlayer/MPV 播放
 
 Actions Variable `R2_BUCKET` 默认 `iplay-trailers`；如果改名，须同步修改 Worker 的 `wrangler.toml`。
 
-Cookie 不是永久凭据，也不保证消除 YouTube 的 IP/Token 验证。工作流包含 yt-dlp 的 EJS 依赖与 Deno；当前没有默认启用独立 PO Token 服务。若 GitHub runner 下载被拒绝，应按实际错误维护下载器/认证或改用 self-hosted runner。不要将 Cookie、密钥或下载文件提交到 public 仓库，不上传原始下载日志作为 artifact。
+Cookie 不是永久凭据，也不保证消除 YouTube 的 IP/Token 验证。工作流包含 yt-dlp 的 EJS 依赖与 Deno；Actions 默认启动仅绑定 runner 回环地址的 `bgutil-ytdlp-pot-provider:2.0.2`，通过 mweb 客户端使用 PO Token。Token 仍不保证解决 IP 风控；本地验证默认不启用此服务。若 GitHub runner 下载被拒绝，应按实际错误维护下载器/认证或改用 self-hosted runner。不要将 Cookie、密钥或下载文件提交到 public 仓库，不上传原始下载日志作为 artifact。
 
 ## 2. 先验证下载环境（不需要 R2）
 

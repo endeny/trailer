@@ -1,2 +1,3 @@
 boto3>=1.35,<2
 yt-dlp[default]
+bgutil-ytdlp-pot-provider==2.0.2

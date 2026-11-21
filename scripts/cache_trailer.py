@@ -105,6 +105,14 @@ def command(args, timeout=240):
             raise JobError("youtube_auth_required")
         if "po token" in text or "po_token" in text:
             raise JobError("youtube_token_required")
+        if "requested format" in text or "no video formats" in text:
+            raise JobError("youtube_format_unavailable")
+        if "429" in text or "too many requests" in text:
+            raise JobError("youtube_rate_limited")
+        if "video unavailable" in text or "video is unavailable" in text:
+            raise JobError("youtube_video_unavailable")
+        if "javascript" in text or "challenge" in text:
+            raise JobError("youtube_js_challenge_failed")
         if "403" in text:
             raise JobError("youtube_access_denied")
         raise JobError("download_or_encode_failed")
@@ -114,6 +122,8 @@ def command(args, timeout=240):
 def download(candidate, directory):
     base = ["yt-dlp", "--ignore-config", "--no-playlist", "--no-progress", "--no-warnings",
             "--socket-timeout", "30", "--retries", "2", "--fragment-retries", "2", "--concurrent-fragments", "1"]
+    if os.environ.get("YOUTUBE_PO_PROVIDER") == "true":
+        base += ["--extractor-args", "youtube:player_client=mweb"]
     if os.environ.get("YOUTUBE_COOKIES_FILE"):
         base += ["--cookies", os.environ["YOUTUBE_COOKIES_FILE"]]
     url = f"https://www.youtube.com/watch?v={candidate['youtube_id']}"
@@ -185,6 +195,7 @@ def run_job(s3, bucket, media_type, tmdb_id, language, resolver=resolve, downloa
                     return 0
             except JobError as error:
                 last_error = str(error)
+                print(f"Candidate failed: {last_error}")
         raise JobError(last_error)
     except JobError as error:
         publish("failed", error=str(error))
@@ -218,6 +229,7 @@ def main():
                     return 0
             except JobError as error:
                 last_error = str(error)
+                print(f"Candidate failed: {last_error}")
         print(f"Download verification failed: {last_error}")
         return 1
     for name in ("R2_ACCOUNT_ID", "R2_BUCKET", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):

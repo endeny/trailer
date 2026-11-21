@@ -51,8 +51,18 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
           python -m pip install -r requirements.txt
+      - name: Start PO Token provider
+        run: |
+          docker run --name trailer-pot -d --init \
+            -p 127.0.0.1:4416:4416 brainicism/bgutil-ytdlp-pot-provider:2.0.2
+          for attempt in {1..30}; do
+            if curl --silent --output /dev/null http://127.0.0.1:4416; then break; fi
+            sleep 1
+          done
+          curl --silent --output /dev/null http://127.0.0.1:4416
       - name: Download and upload trailer
         env:
+          YOUTUBE_PO_PROVIDER: "true"
           DRY_RUN: ${{ inputs.dry_run }}
           MEDIA_TYPE: ${{ inputs.media_type }}
           TMDB_ID: ${{ inputs.tmdb_id }}
@@ -76,3 +86,6 @@ jobs:
           args=()
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           python scripts/cache_trailer.py --media-type "$MEDIA_TYPE" --tmdb-id "$TMDB_ID" --language "$VIDEO_LANGUAGE" "${args[@]}"
+      - name: Stop PO Token provider
+        if: always()
+        run: docker rm -f trailer-pot >/dev/null 2>&1 || true

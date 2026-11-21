@@ -1,6 +1,10 @@
 # 2026-11-21 链路搭建与验证记录
 
-时间：2026-11-21（Asia/Shanghai）。仓库：`endeny/trailer`。这是独立仓库，iPlay.All 和各平台子仓库未因本链路修改代码。
+时间：2026-11-21（Asia/Shanghai）。
+
+**当前验收结果：Worker 提交 → GitHub Actions → YouTube 下载/转码 → R2 media → Worker MP4 播放链路已通过真实验证；下文保留各阶段失败与修复记录。**
+
+仓库：`endeny/trailer`。这是独立仓库，iPlay.All 和各平台子仓库未因本链路修改代码。
 
 ## 提交追溯
 
@@ -46,7 +50,7 @@ Cloudflare 已有登录态，但首次列举 bucket 返回 `10001`；再次请�
 
 用户需要在 Cloudflare 控制台先开通 R2，创建默认位置、Standard 存储的 `iplay-trailers` bucket；生成只授权该 bucket Object Read & Write 的 S3 凭据，写入 GitHub Actions Secrets：`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。Secret Access Key 仅创建时显示一次，不通过聊天传递。
 
-## 验收边界与后续步骤
+## 首次记录时的验收边界与后续步骤（现已完成）
 
 代码已公开推送、自动检查成功；没有宣称端到端成功。后续必须依次验证：
 
@@ -56,3 +60,48 @@ Cloudflare 已有登录态，但首次列举 bucket 返回 `10001`；再次请�
 4. 实测提交 → 状态转移 → 播放 URL、HEAD、Range；重复提交应命中缓存。
 
 在以上步骤完成之前，客户端不要依赖该服务为背景预告片提供可用 URL。
+
+
+## 2026-11-21：接入用户现有 media 桶
+
+- 配置基线：`9762d83`；桶名调整代码提交：`f6af2f69cc278c9e809da59c6727f5bd7b18ac2f`。
+- 用户开通 R2 并配置三个 S3 Secrets 后，`wrangler r2 bucket list` 已能看到 `media`；同步设置仓库 Variable `R2_BUCKET=media`、工作流默认值和 Worker binding。
+- [真实任务](https://github.com/endeny/trailer/actions/runs/44879077614)成功向该 bucket 写入 metadata，Worker 读取得到相同的 `youtube_auth_required` 失败状态。证明 S3 凭据写入与 Worker binding 读取已连通，不等于视频上传成功。
+- Worker 部署地址：`https://iplay-trailer-cache.ourfor.workers.dev`，初始部署版本 `e38c45c4-bca4-41a5-af76-65b1252de1d6`。
+- `/health` 返回 200；GET 状态接口返回 200；缺少提交凭据的 POST 返回 401；尚未缓存的视频 HEAD 返回 404。默认 Python urllib User-Agent 曾遭遇 Cloudflare 边缘 1010，使用 iPlay-Trailer-Cache/1.0 正常；curl 默认 UA 也已验证正常。未修改账户安全设置。
+
+## GitHub Cookie Secret 超限修复
+
+- 用户反馈：粘贴 cookies.txt 后 GitHub 提示 `Value is too large`。无页面截图；为配置/API 限额问题。
+- 修复前基线：`f6af2f69cc278c9e809da59c6727f5bd7b18ac2f`。
+- 实际代码修复：`5fba9df4f66cfba395fedb115b6f580a0b55e01e`。
+- 根因：GitHub 单 Secret 上限 48 KB；全浏览器 Cookie 导出含有其他网站的 Cookie，不应该原样配置给仅下载 YouTube 的工作流。
+- 方案：增加 `scripts/prepare_cookies.py`，支持 Netscape/常见 Cookie JSON，只保留 youtube.com 及其子域，保留 HttpOnly 字段、按 domain/path/name 去重，检查字节数后通过 gh stdin 加密提交。输出仅含条数与字节数，不创建明文中间文件，不打印原始内容；不改动用户原文件。Actions 运行时再次过滤，临时文件权限 0600 并用 EXIT trap 清理。
+- 实际从用户授权的本地导出中保留 22 条 Cookie、2894 字节，并成功配置仓库 Secret。未将原始导出、其他网站 Cookie 或 Cookie 值写入仓库、文档、聊天或日志。
+- 新增 5 项 Cookie 测试；当前本地与 GitHub 检查合计 20 项（8 Worker + 12 Python）通过，Wrangler 打包通过。[检查记录](https://github.com/endeny/trailer/actions/runs/44879521303)。
+- 提交接口随机凭据已通过 Wrangler 配置为 Worker Secret `SUBMIT_TOKEN`，本地副本在被 Git 忽略的 mode-0600 `.dev.vars`；未复用或转移 GitHub CLI 的广权限登录凭据。
+- 该阶段 Worker 自动 dispatch 尚待配置 GitHub Token；后续配置与验收见下文。
+
+
+## 带 Cookie 的下载客户端选择
+
+- 修复前基线：`5fba9df4f66cfba395fedb115b6f580a0b55e01e`。
+- 实际代码修复：`4c9bc6f0fa65e794b2051e010281cb618defb13d`。
+- [带 Cookie 的首次真实任务](https://github.com/endeny/trailer/actions/runs/44879523849)不再报账号认证错误，但部分候选报 `youtube_token_required`，另一个候选无可用时长。
+- 本地使用同一授权的 YouTube Cookie 对《奥本海默》候选 `ckvYK2QWAH4` 交叉检查：默认客户端取得 duration=130、15 个 format；强制 mweb 只返回 4 个 format，并提示 GVS PO Token 缺失；web_safari 返回 8 个 format。这表明强制 mweb 会丢失默认客户端能提供的部分格式。
+- 调整为默认客户端优先，失败才使用 mweb+PO Token。不同 profile 的临时下载目录独立；新增 2 个回归测试，确保默认成功时不重复下载、默认失败才调用后备。
+- 当前 8 项 Worker + 14 项 Python，共 22 项测试通过。[对应 GitHub 检查](https://github.com/endeny/trailer/actions/runs/44880203220)成功。
+
+## 最终端到端验收（2026-11-21）
+
+1. 用户完成 Worker GitHub 凭据配置后，使用本地提交凭据向 `/v1/trailers/movie/299534/en` 发 POST，返回 `202 pending`，确实触发了 [Actions 运行 44879978076](https://github.com/endeny/trailer/actions/runs/44879978076)。该运行成功下载、转码并上传，而不是测试替身或现有演示文件。
+2. Worker GET 返回 `ready`，对象 33,534,820 字节，播放 URL：`https://iplay-trailer-cache.ourfor.workers.dev/media/movie/299534/en.mp4`。
+3. 对真实远端 MP4 执行 ffprobe：H.264 1280×720，AAC，duration=185.36 秒。
+4. HEAD 返回 200、`Content-Type: video/mp4`、`Content-Length: 33534820`、`Accept-Ranges: bytes`。
+5. `Range: bytes=0-15` 返回 206、`Content-Range: bytes 0-15/33534820`；返回的 MP4 头含 ftyp。
+6. 匹配的 If-None-Match 返回 304；未携带提交凭据的 POST 仍返回 401。
+7. 对已缓存的 299534 再次提交，返回 HTTP 200 / ready，直接复用缓存，不再 dispatch。
+8. 使用新客户端顺序的 [《奥本海默》任务 44880205026](https://github.com/endeny/trailer/actions/runs/44880205026)同样成功，R2 状态返回 ready。
+9. 用户最初把 GITHUB_TOKEN 建为普通变量；Cloudflare 不允许同名 plain_text 直接 secret put，报 10053。在不打印凭据的情况下保留同一值、移除普通绑定后配置为加密 Secret。最终 Worker Secrets 为 GITHUB_TOKEN 与 SUBMIT_TOKEN，均未提交到 public 仓库。
+
+后续仍需按实际使用维护 Cookie 有效期、下载器版本和缓存容量；本次没有添加全桶生命周期、删除现有 media 内容或修改 iPlay 客户端。媒体数据仅使用 trailers/v1 前缀。

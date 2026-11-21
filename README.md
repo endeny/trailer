@@ -149,4 +149,12 @@ python3 -m venv .venv
 
 见 [2026-11-21 验证记录](doc/VALIDATION.md)，明确区分代码检查通过与真实下载/R2 未完成的部分。
 
-当前已部署的只读服务：[Worker health](https://iplay-trailer-cache.ourfor.workers.dev/health)。R2 使用现有 `media` bucket；仅操作 `trailers/v1/` 前缀。自动 POST 触发还需配置 Worker 的 `GITHUB_TOKEN` 和 `SUBMIT_TOKEN`。
+当前已部署服务：[Worker health](https://iplay-trailer-cache.ourfor.workers.dev/health)。R2 使用现有 `media` bucket；仅操作 `trailers/v1/` 前缀。Worker 的 `GITHUB_TOKEN` 和 `SUBMIT_TOKEN` 均已配置；提交必须携带 Bearer 凭据。
+
+
+端到端实测已通过：
+
+- [状态查询示例（TMDB 299534）](https://iplay-trailer-cache.ourfor.workers.dev/v1/trailers/movie/299534/en)
+- [720p MP4 播放示例](https://iplay-trailer-cache.ourfor.workers.dev/media/movie/299534/en.mp4)
+
+仅由可信后端或管理员持有提交凭据；本地生成的提交凭据副本位于被 Git 忽略的 `.dev.vars`（0600），未写入本 README 或仓库历史。

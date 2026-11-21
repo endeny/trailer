@@ -6,7 +6,7 @@ from download_variants import download_variants, VARIANT_LIMITS
 from hf_storage import HFStore, HFStorageError
 
 
-def run_hf_job(s3, bucket, media_type, tmdb_id, language, *, store=None, resolver=None, downloader=None):
+def run_hf_job(s3, bucket, media_type, tmdb_id, language, *, store=None, resolver=None, downloader=None, refresh=False):
     from cache_trailer import validate, now, storage_lease, command, JobError, resolve
     import os
     base = validate(media_type, tmdb_id, language)
@@ -41,17 +41,20 @@ def run_hf_job(s3, bucket, media_type, tmdb_id, language, *, store=None, resolve
         state = {**identity, 'status': status, 'updated_at': now(), **fields}
         s3.put_object(Bucket=bucket, Key=f'{base}/metadata.json', Body=json.dumps(state).encode(),
                       ContentType='application/json', CacheControl='no-store')
+    cached = None
     try:
         store = store or HFStore(os.environ.get('HF_REPO_ID'), os.environ.get('HF_TOKEN'))
         with storage_lease(s3, bucket):
             cached = store.lookup(base)
-            if cached:
+            if cached and not refresh:
                 publish('ready', **{k:v for k,v in cached.items() if k not in (*identity, 'status', 'updated_at')})
                 print('HF cache hit; download skipped.')
                 return 0
             store.ensure_capacity(sum(VARIANT_LIMITS.values()))
             publish('running')
             candidates = resolver(media_type, tmdb_id, language)
+            if not candidates and cached:
+                raise JobError('no_matching_trailer')
             if not candidates:
                 migrated = migrate_existing(store)
                 if migrated:
@@ -72,6 +75,8 @@ def run_hf_job(s3, bucket, media_type, tmdb_id, language, *, store=None, resolve
                 except JobError as error:
                     last_error = str(error)
                     print(f'Candidate failed: {last_error}')
+            if cached:
+                raise JobError(last_error)
             migrated = migrate_existing(store)
             if migrated:
                 publish('ready', **{k:v for k,v in migrated.items() if k not in (*identity, 'status', 'updated_at')})
@@ -79,10 +84,16 @@ def run_hf_job(s3, bucket, media_type, tmdb_id, language, *, store=None, resolve
                 return 0
             raise JobError(last_error)
     except (HFStorageError, JobError) as error:
-        publish('failed', error=str(error))
+        if cached:
+            publish('ready', **{k:v for k,v in cached.items() if k not in (*identity, 'status', 'updated_at')}, refresh_error=str(error))
+        else:
+            publish('failed', error=str(error))
         print(f'Trailer job failed: {error}')
         return 1
     except Exception:
-        publish('failed', error='storage_or_job_failed')
+        if cached:
+            publish('ready', **{k:v for k,v in cached.items() if k not in (*identity, 'status', 'updated_at')}, refresh_error='storage_or_job_failed')
+        else:
+            publish('failed', error='storage_or_job_failed')
         print('Trailer job failed: storage_or_job_failed')
         return 1

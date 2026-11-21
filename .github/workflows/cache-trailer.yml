@@ -20,6 +20,10 @@ on:
         default: en
         required: true
 
+      refresh:
+        description: Explicitly refresh an existing HF video (e.g. upgrade migrated 720p)
+        type: boolean
+        default: false
       dry_run:
         description: Download and encode only, without R2 credentials or upload
         type: boolean
@@ -66,6 +70,7 @@ jobs:
           HF_REPO_ID: ${{ vars.HF_REPO_ID || 'saltpi/iplay-trailers' }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           YOUTUBE_PO_PROVIDER: "true"
+          REFRESH: ${{ inputs.refresh }}
           DRY_RUN: ${{ inputs.dry_run }}
           MEDIA_TYPE: ${{ inputs.media_type }}
           TMDB_ID: ${{ inputs.tmdb_id }}
@@ -87,6 +92,7 @@ jobs:
           fi
           unset YOUTUBE_COOKIES
           args=()
+          if [ "$REFRESH" = "true" ]; then args+=(--refresh); fi
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           python scripts/cache_trailer.py --media-type "$MEDIA_TYPE" --tmdb-id "$TMDB_ID" --language "$VIDEO_LANGUAGE" "${args[@]}"
       - name: Stop PO Token provider

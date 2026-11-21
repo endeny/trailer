@@ -314,6 +314,7 @@ def main():
     parser.add_argument("--media-type", required=True)
     parser.add_argument("--tmdb-id", required=True)
     parser.add_argument("--language", default="en")
+    parser.add_argument("--refresh", action="store_true", help="Explicitly try replacing a cached HF snapshot")
     parser.add_argument("--dry-run", action="store_true", help="Resolve/download/encode without using R2")
     args = parser.parse_args()
     validate(args.media_type, args.tmdb_id, args.language)
@@ -347,7 +348,7 @@ def main():
     backend = os.environ.get("STORAGE_BACKEND", "hf")
     if backend == "hf":
         from hf_job import run_hf_job
-        return run_hf_job(s3, os.environ["R2_BUCKET"], args.media_type, args.tmdb_id, args.language)
+        return run_hf_job(s3, os.environ["R2_BUCKET"], args.media_type, args.tmdb_id, args.language, refresh=args.refresh)
     if backend != "r2":
         raise JobError("invalid_storage_backend")
     return run_job(s3, os.environ["R2_BUCKET"], args.media_type, args.tmdb_id, args.language)

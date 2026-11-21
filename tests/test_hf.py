@@ -74,3 +74,25 @@ class HF(unittest.TestCase):
             self.assertEqual(variants['1080p']['height'],1080)
 
 if __name__=='__main__':unittest.main()
+
+class Migration(unittest.TestCase):
+    def test_youtube_auth_failure_migrates_existing_real_identity_without_upscaling(self):
+        from unittest.mock import patch
+        import json
+        s3=S3(True);s3.download_file=lambda bucket,key,path:Path(path).write_bytes(b'legacy')
+        store=Mock();store.lookup.return_value=None
+        store.upload.return_value={'storage':'hf','variants':{'720p':{}},'hf_revision':'b'*40}
+        probe=json.dumps({'streams':[{'codec_type':'video','codec_name':'h264','width':1280,'height':720}],'format':{'duration':'30'}})
+        with patch('cache_trailer.command',return_value=probe):
+            result=run_hf_job(s3,'media','movie','1','en',store=store,resolver=lambda *a:[{}],
+                              downloader=Mock(side_effect=JobError('youtube_auth_required')))
+        self.assertEqual(result,0);self.assertEqual(s3.states[-1]['storage'],'hf')
+        self.assertEqual(list(store.upload.call_args.args[3]),['720p']);self.assertEqual(s3.uploads,[])
+
+    def test_failed_refresh_preserves_existing_hf_snapshot(self):
+        store=Mock();store.lookup.return_value={'storage':'hf','variants':{'720p':{}},'hf_revision':'b'*40}
+        s3=S3()
+        result=run_hf_job(s3,'media','movie','1','en',store=store,resolver=lambda *a:[{}],
+                          downloader=Mock(side_effect=JobError('youtube_auth_required')),refresh=True)
+        self.assertEqual(result,1);self.assertEqual(s3.states[-1]['status'],'ready')
+        self.assertEqual(s3.states[-1]['hf_revision'],'b'*40)

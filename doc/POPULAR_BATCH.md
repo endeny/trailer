@@ -33,3 +33,6 @@ gh workflow run warm-popular.yml --repo endeny/trailer -f language=en
 - 旧 runner 强制取消留下下载租约；确认旧 run 已 cancelled、当前唯一下载 run 尚在安装阶段后，只删除旧下载锁对象，不删除任何视频或进度对象。避免恢复时等待旧锁自然过期。
 - 仓库未配置独立 TMDB_TOKEN，KinoCheck 对钢铁侠等存在预告的影片返回空，因此增加既有 tmdb.saltpi.cn 的 `/3/movie/:id/videos` 查询，沿用已有软件 attest 协议。实查 movie/1726 返回 TMDB Trailer；不改变服务端鉴权，不暴露凭据给客户端。
 - 最终运行结果见 [VALIDATION.md](VALIDATION.md)，不可将 200 个任务身份与 200 个成功下载混为一谈。
+
+
+当前续跑 [44885399820](https://github.com/endeny/trailer/actions/runs/44885399820) 已取得 2 部真实双档 HF 视频；1368337 的两档已实际验证 HF CDN 206 与 H.264/AAC 尺寸。其余条目仍在顺序处理，不能将当前快照当作 200 部最终完成报告。

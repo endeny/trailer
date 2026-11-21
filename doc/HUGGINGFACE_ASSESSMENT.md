@@ -1,5 +1,7 @@
 # HF 优先存储与双清晰度（2026-11-21）
 
+最新进展：更新 YouTube Cookie 后，热门 200 部批次已成功下载并上传真实 720p/1080p。首部两档 HF CDN Range 与 ffprobe 已验证通过，见 [批量双档证据](evidence/popular-first-dual-quality-20261121.json)；下文首次接入遇到认证限制的记录为当时结果。
+
 本次按用户要求实现 HF 为视频主存储。Actions 默认 STORAGE_BACKEND=hf；R2 保留小型任务状态、HF 提交清单、全局租约和预算计数，既有 R2 视频可回退。没有修改客户端模型或界面。
 
 ## 实现

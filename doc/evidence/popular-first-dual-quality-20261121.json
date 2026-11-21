@@ -1,0 +1,42 @@
+{
+  "tmdb_id": 1368337,
+  "run_id": 44885399820,
+  "variants": [
+    {
+      "quality": "720p",
+      "url": "https://trailers.saltpi.cn/media/movie/1368337/en.mp4?quality=720p",
+      "file_host": "us.aws.cdn.hf.co",
+      "range_status": 206,
+      "content_range": "bytes 0-1023/27459259",
+      "streams": [
+        {
+          "codec_name": "h264",
+          "width": 1280,
+          "height": 720
+        },
+        {
+          "codec_name": "aac"
+        }
+      ],
+      "duration_seconds": "150.159000"
+    },
+    {
+      "quality": "1080p",
+      "url": "https://trailers.saltpi.cn/media/movie/1368337/en.mp4?quality=1080p",
+      "file_host": "us.aws.cdn.hf.co",
+      "range_status": 206,
+      "content_range": "bytes 0-1023/65670301",
+      "streams": [
+        {
+          "codec_name": "h264",
+          "width": 1920,
+          "height": 1080
+        },
+        {
+          "codec_name": "aac"
+        }
+      ],
+      "duration_seconds": "150.159000"
+    }
+  ]
+}

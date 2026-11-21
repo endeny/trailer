@@ -130,3 +130,15 @@ Cloudflare 已有登录态，但首次列举 bucket 返回 `10001`；再次请�
 - [44884472205](https://github.com/endeny/trailer/actions/runs/44884472205) 重复任务成功，日志明确 HF cache hit; download skipped，验证无重复下载。
 - 1080p 编码与实际尺寸选择有自动测试覆盖，本轮源站认证被拒绝，未取得真实 1080p 产物；未把迁移的 720p 冒充双档。没有实施移动端运行测试。
 - HF 当前文件预算 90 GB 不含其他仓库/历史版本，受 HF 账号实际额度和解析限流约束；HF 文件 CDN 不等同 Cloudflare HIT，不承诺无限免费存储/分发。未启用付费视频/CDN产品。
+
+
+## 2026-11-21T16:37:41+08:00：热门 200 部批量下载已启动并取得双清晰度产物
+
+- 用户授权先预下载热门 200 部。名单取 TMDB Popular 前 200 个唯一电影 ID，快照 data/popular-movies-20261121.json；默认英语。代码 `991ebc1`，Cookie 轮换诊断 `9d10c99`，TMDB 视频源补齐与恢复 `c012339`；基线 `6ad0a21`。
+- 顺序单任务、逐片持久检查点、HF 缓存复用、明确 Cookie 失效立即停止/其他连续三次认证失败暂停，315 分钟运行预算后自动派发同工作流续接。显式管理员批量预热获本次 200 条授权，未修改正常 Worker 的每日 8 次自动发现限制。
+- 首轮 [44885000913](https://github.com/endeny/trailer/actions/runs/44885000913) 因旧 Cookie 失效无新增视频；用户更新导出后停止旧 run。只输出认证标志，未输出 Cookie 内容；本机新凭据同源预检 exit 0，无 cookie-rotation/bot-check。GitHub Secret 更新只经 stdin。
+- 清理被取消 runner 留下的旧租约时，先确认旧 run completed/cancelled、当前唯一下载 run 尚处安装阶段，仅删除旧锁对象，未删视频或批量进度。
+- 当前运行：[44885399820](https://github.com/endeny/trailer/actions/runs/44885399820)。同一检查点恢复，旧解析器的 not_found 因新增 TMDB videos 查询重新检查，钢铁侠实查有官方 Trailer。
+- 当前快照已完成 2 部新视频（1368337、1263337），均含原生 720p 与 1080p；批次仍在运行，不是 200 部均已完成。快照中的 11 个 failed 是旧凭据留下、尚待续跑重试的历史结果，187 个 pending 尚在队列内。持久 R2 状态优先于本归档快照：[脱敏批量报告](evidence/popular-batch-20261121.json)。
+- 首部 1368337 真实 HF CDN 检查：720p H.264 1280×720 + AAC，27,459,259 字节；1080p H.264 1920×1080 + AAC，65,670,301 字节。两档稳定域名地址均返回 HF 302/no-store，文件 CDN Range 均 206，ffprobe 通过。[脱敏双档证据](evidence/popular-first-dual-quality-20261121.json)。这次已经取得真实 1080p，不再只是单测覆盖。
+- 最新本地 37 项 Python + 19 项 Worker 检查通过；CI [44885397456](https://github.com/endeny/trailer/actions/runs/44885397456) 成功。批量任务不需要重新部署客户端或 Worker。

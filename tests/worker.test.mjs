@@ -1,19 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseRange, parseRoute } from '../worker/index.mjs';
+import worker, { parseRange, parseRoute, reserveDailySlot } from '../worker/index.mjs';
 
 class Bucket {
   data = new Map();
+  revisions = new Map();
   object(key, range) {
     const value = this.data.get(key);
     if (!value) return null;
     const bytes = new TextEncoder().encode(value);
-    return { size: bytes.length, httpEtag: '"test"', json: async () => JSON.parse(value),
+    const etag = key.endsWith("video.mp4") ? "test" : String(this.revisions.get(key) || 0);
+    return { size: bytes.length, etag, httpEtag: `"${etag}"`, json: async () => JSON.parse(value),
       body: range ? bytes.slice(range.offset, range.offset + range.length) : bytes };
   }
   async get(key, options) { return this.object(key, options?.range); }
   async head(key) { return this.object(key); }
-  async put(key, value) { this.data.set(key, value); }
+  async put(key, value, options) {
+    const current = this.object(key);
+    if (options?.onlyIf?.etagDoesNotMatch === "*" && current) return null;
+    if (options?.onlyIf?.etagMatches && options.onlyIf.etagMatches !== current?.etag) return null;
+    this.data.set(key, value); this.revisions.set(key, (this.revisions.get(key) || 0) + 1);
+    return this.object(key);
+  }
 }
 function env() { return { TRAILERS: new Bucket(), SUBMIT_TOKEN: 'submit', GITHUB_TOKEN: 'github', GITHUB_REPOSITORY: 'endeny/trailer' }; }
 const base = 'trailers/v1/movie/299534/en';
@@ -91,4 +99,37 @@ test('native player GET, HEAD, Range and conditional requests', async () => {
   assert.equal(r.status, 416); assert.equal(r.headers.get('Content-Range'), 'bytes */10');
   r = await worker.fetch(new Request(media, { headers: { Range: 'bytes=2-5', 'If-Range': '"old"' } }), e);
   assert.equal(r.status, 200); assert.equal(await r.text(), '0123456789');
+});
+
+
+test('CDN media redirects do not read R2 and ready data returns the direct CDN URL', async () => {
+  const e = env(); e.CDN_BASE_URL = 'https://trailers.saltpi.cn';
+  const r = await worker.fetch(new Request('https://worker.example/media/movie/299534/en.mp4'), e);
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('Location'), 'https://trailers.saltpi.cn/trailers/v1/movie/299534/en/video.mp4');
+  assert.equal(e.TRAILERS.data.size, 0);
+  await e.TRAILERS.put(`${base}/video.mp4`, 'video');
+  const state = await (await worker.fetch(new Request(url), e)).json();
+  assert.equal(state.trailer_url, r.headers.get('Location'));
+});
+test('concurrent daily reservations cannot exceed the configured budget', async () => {
+  const e = env(); e.DAILY_DOWNLOAD_LIMIT = '2';
+  const accepted = await Promise.all(Array.from({length: 6}, () => reserveDailySlot(e)));
+  assert.equal(accepted.filter(Boolean).length, 2);
+});
+test('simultaneous submissions only dispatch one job for an identity', async () => {
+  const e = env(); const original = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response(null, {status: 204}); };
+  try {
+    const responses = await Promise.all([worker.fetch(post(), e), worker.fetch(post(), e)]);
+    assert.ok(responses.every(r => r.status === 202)); assert.equal(calls, 1);
+  } finally { globalThis.fetch = original; }
+});
+test('internal batch is authenticated, bounded, and returns movie/tv identities separately', async () => {
+  const e = env(); await e.TRAILERS.put(`${base}/video.mp4`, 'video');
+  const request = (items, token = 'submit') => new Request('https://worker.example/internal/resolve', {method:'POST', headers:{Authorization:`Bearer ${token}`}, body:JSON.stringify({items})});
+  assert.equal((await worker.fetch(request([], 'wrong'), e)).status, 401);
+  assert.equal((await worker.fetch(request(Array(7).fill({type:'movie',id:1})), e)).status, 400);
+  const r = await worker.fetch(request([{type:'movie',id:299534},{type:'tv',id:299534}]),e);
+  const data = await r.json(); assert.equal(data.results[0].status,'ready'); assert.equal(data.results[1].status,'missing');
 });

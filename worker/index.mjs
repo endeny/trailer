@@ -1,6 +1,7 @@
 const PREFIX = "trailers/v1";
 const JOB_TTL_MS = 30 * 60 * 1000;
-const RETRY_MS = 15 * 60 * 1000;
+const RETRY_MS = 6 * 60 * 60 * 1000;
+const STATE_ETAG = Symbol("stateEtag");
 
 export function parseRoute(path) {
   const match = path.match(/^\/(v1\/trailers|media)\/(movie|tv)\/([1-9]\d{0,9})\/([a-z]{2})(\.mp4)?$/);
@@ -37,7 +38,22 @@ export function parseRange(header, size) {
   return { offset: start, length: end - start + 1 };
 }
 
+export function trailerURL(env, route, origin) {
+  if (env.CDN_BASE_URL) {
+    const cdn = new URL(env.CDN_BASE_URL);
+    if (cdn.protocol !== "https:" || cdn.pathname !== "/" || cdn.search || cdn.hash) throw new Error("invalid_cdn_origin");
+    return `${cdn.origin}/${route.base}/video.mp4`;
+  }
+  return `${origin}/media/${route.type}/${route.id}/${route.language}.mp4`;
+}
+
 async function mediaResponse(request, env, route) {
+  if (env.CDN_BASE_URL) {
+    return new Response(null, { status: 302, headers: {
+      Location: trailerURL(env, route, new URL(request.url).origin),
+      "Cache-Control": "public, max-age=86400"
+    } });
+  }
   const key = `${route.base}/video.mp4`;
   const object = await env.TRAILERS.head(key);
   if (!object) return json({ error: "not_cached" }, 404);
@@ -68,37 +84,87 @@ async function readState(env, route) {
   const object = await env.TRAILERS.get(`${route.base}/metadata.json`);
   if (!object) return { status: "missing" };
   const state = await object.json();
+  state[STATE_ETAG] = object.etag;
   if (["pending", "running"].includes(state.status) && Date.now() - Date.parse(state.updated_at) > JOB_TTL_MS) {
     return { ...state, status: "expired", error: "job_timeout" };
   }
   return state;
 }
 
-async function saveState(env, route, state) {
-  await env.TRAILERS.put(`${route.base}/metadata.json`, JSON.stringify(state), {
-    httpMetadata: { contentType: "application/json", cacheControl: "no-store" }
+async function saveState(env, route, state, onlyIf) {
+  return env.TRAILERS.put(`${route.base}/metadata.json`, JSON.stringify(state), {
+    httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
+    ...(onlyIf ? { onlyIf } : {})
   });
 }
 
-async function handle(request, env) {
+export async function reserveDailySlot(env) {
+  // Atomic R2 CAS: no paid Durable Object, KV or queue is needed for this small daily budget.
+  const day = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+  const limit = Math.max(0, Math.min(32, Number(env.DAILY_DOWNLOAD_LIMIT ?? 8) || 0));
+  const key = `trailer-control/v1/daily/${day}.json`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const current = await env.TRAILERS.get(key);
+    const count = current ? Number((await current.json()).count) : 0;
+    if (!Number.isSafeInteger(count) || count < 0 || count >= limit) return false;
+    const saved = await env.TRAILERS.put(key, JSON.stringify({ day, count: count + 1 }), {
+      onlyIf: current ? { etagMatches: current.etag } : { etagDoesNotMatch: "*" },
+      httpMetadata: { contentType: "application/json", cacheControl: "no-store" }
+    });
+    if (saved) return true;
+  }
+  return false;
+}
+
+async function internalResolve(request, env, ctx) {
+  if (!await authenticated(request, env.SUBMIT_TOKEN)) return json({ error: "unauthorized" }, 401);
+  if (Number(request.headers.get("Content-Length")) > 8192) return json({ error: "batch_too_large" }, 413);
+  let input;
+  try { input = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
+  if (!Array.isArray(input.items) || input.items.length > 6 || input.items.some(item => !item || typeof item !== "object")) return json({ error: "invalid_batch" }, 400);
+  const routes = input.items.map(item => parseRoute(`/v1/trailers/${item.type}/${item.id}/${item.language || "en"}`));
+  if (routes.some(route => !route || route.media)) return json({ error: "invalid_identity" }, 400);
+  const origin = new URL(request.url).origin;
+  const results = await Promise.all(routes.map(async route => {
+    const response = await handle(new Request(`${origin}/v1/trailers/${route.type}/${route.id}/${route.language}`), env, ctx);
+    return { type: route.type, id: Number(route.id), language: route.language, ...(await response.json()) };
+  }));
+  let scheduled = 0;
+  for (let i = 0; i < results.length; i++) {
+    if (input.items[i].queue === true && !results[i].trailer_url && scheduled < 2) {
+      scheduled++;
+      const route = routes[i];
+      const promise = handle(new Request(`${origin}/v1/trailers/${route.type}/${route.id}/${route.language}`, {
+        method: "POST", headers: { Authorization: `Bearer ${env.SUBMIT_TOKEN}` }
+      }), env, ctx).catch(() => {});
+      if (ctx?.waitUntil) ctx.waitUntil(promise); else await promise;
+    }
+  }
+  return json({ results });
+}
+
+async function handle(request, env, ctx) {
   const url = new URL(request.url);
   if (url.pathname === "/health" && request.method === "GET") return json({ ok: true });
+  if (url.pathname === "/internal/resolve" && request.method === "POST") return internalResolve(request, env, ctx);
   const route = parseRoute(url.pathname);
   if (!route) return json({ error: "not_found" }, 404);
   const allowed = route.media ? ["GET", "HEAD"] : ["GET", "POST"];
   if (!allowed.includes(request.method)) return json({ error: "method_not_allowed" }, 405, { Allow: allowed.join(", ") });
   if (request.method === "POST" && !await authenticated(request, env.SUBMIT_TOKEN)) return json({ error: "unauthorized" }, 401);
   if (route.media) return mediaResponse(request, env, route);
-  const state = await readState(env, route);
   // Presence of the actual object is authoritative, including a completed upload whose final status write failed.
   const video = await env.TRAILERS.head(`${route.base}/video.mp4`);
   if (video) return json({ media_type: route.type, tmdb_id: Number(route.id), language: route.language,
     status: "ready", size_bytes: video.size,
-    trailer_url: new URL(`/media/${route.type}/${route.id}/${route.language}.mp4`, url.origin).href });
+    trailer_url: trailerURL(env, route, url.origin) });
+  const state = await readState(env, route);
   if (request.method === "GET") return json({ ...state, trailer_url: null, status: state.status === "ready" ? "missing" : state.status });
   if (["pending", "running"].includes(state.status)) return json({ status: state.status, trailer_url: null }, 202, { "Retry-After": "15" });
-  if (["failed", "not_found"].includes(state.status) && Date.now() - Date.parse(state.updated_at) < RETRY_MS) {
-    return json({ status: state.status, error: state.error, retry_after: 900 }, 429, { "Retry-After": "900" });
+  const retryMS = state.status === "not_found" ? 7 * 86400000 : RETRY_MS;
+  if (["failed", "not_found"].includes(state.status) && Date.now() - Date.parse(state.updated_at) < retryMS) {
+    const seconds = Math.ceil((retryMS - (Date.now() - Date.parse(state.updated_at))) / 1000);
+    return json({ status: state.status, error: state.error, retry_after: seconds }, 429, { "Retry-After": String(seconds) });
   }
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.GITHUB_REPOSITORY || "") || env.GITHUB_REPOSITORY === "OWNER/REPOSITORY" || !env.GITHUB_TOKEN) {
     return json({ error: "dispatch_not_configured" }, 503);
@@ -106,7 +172,13 @@ async function handle(request, env) {
   const pending = { status: "pending", media_type: route.type, tmdb_id: Number(route.id), language: route.language,
     request_id: crypto.randomUUID(), updated_at: new Date().toISOString() };
   // Write before dispatch, so a fast Action cannot be overwritten by a later pending write.
-  await saveState(env, route, pending);
+  const claimed = await saveState(env, route, pending,
+    state[STATE_ETAG] ? { etagMatches: state[STATE_ETAG] } : { etagDoesNotMatch: "*" });
+  if (!claimed) return json({ status: "pending", trailer_url: null }, 202, { "Retry-After": "15" });
+  if (!await reserveDailySlot(env)) {
+    await saveState(env, route, { ...pending, status: "failed", error: "daily_download_budget_exceeded" });
+    return json({ error: "daily_download_budget_exceeded" }, 429);
+  }
   try {
     const response = await fetch(`https://api.github.com/repos/${env.GITHUB_REPOSITORY}/actions/workflows/${encodeURIComponent(env.GITHUB_WORKFLOW || "cache-trailer.yml")}/dispatches`, {
       method: "POST", signal: AbortSignal.timeout(15000),
@@ -127,8 +199,8 @@ async function handle(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
-    try { return await handle(request, env); }
+  async fetch(request, env, ctx) {
+    try { return await handle(request, env, ctx); }
     catch { return json({ error: "storage_or_service_unavailable" }, 503); }
   }
 };

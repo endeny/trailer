@@ -7,6 +7,9 @@ not copied into public Actions logs or public R2 metadata (it can contain creden
 import argparse
 import datetime as dt
 import json
+import time
+import uuid
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import re
@@ -19,6 +22,9 @@ import urllib.request
 PREFIX = "trailers/v1"
 MAX_BYTES = 40 * 1024 * 1024
 MAX_DURATION = 300
+STORAGE_LIMIT_BYTES = 8_000_000_000
+CACHE_CONTROL = "public, max-age=86400, s-maxage=2592000"
+COMMAND_DEADLINE = time.monotonic() + 17 * 60
 
 
 class JobError(Exception):
@@ -95,8 +101,11 @@ def resolve(media_type, tmdb_id, language):
 
 
 def command(args, timeout=240):
+    remaining = COMMAND_DEADLINE - time.monotonic()
+    if remaining <= 0:
+        raise JobError("download_or_encode_timeout")
     try:
-        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
+        result = subprocess.run(args, capture_output=True, text=True, timeout=min(timeout, remaining), check=False)
     except subprocess.TimeoutExpired:
         raise JobError("download_or_encode_timeout") from None
     if result.returncode:
@@ -173,6 +182,64 @@ def download(candidate, directory):
     raise last_error
 
 
+
+@contextmanager
+def storage_lease(s3, bucket):
+    """Serialize this service's uploads using a conditional R2 object, with crash recovery."""
+    from botocore.exceptions import ClientError
+    key = "trailer-control/v1/download-lock.json"
+    owner = uuid.uuid4().hex
+    acquired = False
+    for attempt in range(61):
+        payload = json.dumps({"owner": owner, "expires_at": time.time() + 1800}).encode()
+        try:
+            s3.put_object(Bucket=bucket, Key=key, Body=payload, IfNoneMatch="*", ContentType="application/json", CacheControl="no-store")
+            acquired = True
+            break
+        except ClientError as error:
+            if error.response["Error"]["Code"] not in ("412", "PreconditionFailed", "ConditionalRequestConflict", "409"):
+                raise
+        try:
+            current = s3.get_object(Bucket=bucket, Key=key)
+            state = json.loads(current["Body"].read())
+            if float(state.get("expires_at", 0)) < time.time():
+                s3.put_object(Bucket=bucket, Key=key, Body=payload, IfMatch=current["ETag"], ContentType="application/json", CacheControl="no-store")
+                acquired = True
+                break
+        except ClientError as error:
+            if error.response["Error"]["Code"] not in ("404", "NoSuchKey", "412", "PreconditionFailed", "ConditionalRequestConflict", "409"):
+                raise
+        if attempt < 60:
+            time.sleep(5)
+    if not acquired:
+        raise JobError("download_queue_busy")
+    try:
+        yield
+    finally:
+        # The command deadline is under 20 minutes; the lease is valid for 30.
+        # A cancelled Action leaves a lease that a later job can safely replace by ETag.
+        try:
+            current = s3.get_object(Bucket=bucket, Key=key)
+            if json.loads(current["Body"].read()).get("owner") == owner:
+                s3.delete_object(Bucket=bucket, Key=key)
+        except Exception:
+            pass
+
+
+def ensure_capacity(s3, bucket, reserve_bytes=MAX_BYTES):
+    total = 0
+    args = {"Bucket": bucket}
+    while True:
+        page = s3.list_objects_v2(**args)
+        total += sum(int(item["Size"]) for item in page.get("Contents", []))
+        if total + reserve_bytes > STORAGE_LIMIT_BYTES:
+            raise JobError("storage_budget_exceeded")
+        if not page.get("IsTruncated"):
+            break
+        args["ContinuationToken"] = page["NextContinuationToken"]
+    return total
+
+
 def now():
     return dt.datetime.now(dt.timezone.utc).isoformat()
 
@@ -189,7 +256,19 @@ def run_job(s3, bucket, media_type, tmdb_id, language, resolver=resolve, downloa
     try:
         existing = s3.head_object(Bucket=bucket, Key=key)
         if existing.get("ContentLength", 0) > 0:
-            publish("ready", size_bytes=existing["ContentLength"], object_key=key)
+            if existing.get("CacheControl") != CACHE_CONTROL:
+                with storage_lease(s3, bucket):
+                    ensure_capacity(s3, bucket, 0)
+                    s3.copy_object(Bucket=bucket, Key=key, CopySource={"Bucket": bucket, "Key": key},
+                                   MetadataDirective="REPLACE", ContentType="video/mp4", CacheControl=CACHE_CONTROL)
+            provenance = {}
+            try:
+                old = json.loads(s3.get_object(Bucket=bucket, Key=metadata_key)["Body"].read())
+                provenance = {name: old[name] for name in ("youtube_id", "source", "title", "duration_seconds") if name in old}
+            except ClientError as error:
+                if error.response["Error"]["Code"] not in ("404", "NoSuchKey", "NotFound"):
+                    raise
+            publish("ready", size_bytes=existing["ContentLength"], object_key=key, **provenance)
             print("Already cached; download skipped.")
             return 0
     except ClientError as error:
@@ -197,25 +276,28 @@ def run_job(s3, bucket, media_type, tmdb_id, language, resolver=resolve, downloa
             raise
     publish("running")
     try:
-        candidates = resolver(media_type, tmdb_id, language)
-        if not candidates:
-            publish("not_found", error="no_matching_trailer")
-            print("No matching trailer found.")
-            return 0
-        last_error = "download_failed"
-        for candidate in candidates:
-            try:
-                with tempfile.TemporaryDirectory(prefix="trailer-") as temp:
-                    output, duration = downloader(candidate, Path(temp))
-                    s3.upload_file(str(output), bucket, key, ExtraArgs={"ContentType": "video/mp4", "CacheControl": "public, max-age=3600"})
-                    publish("ready", youtube_id=candidate["youtube_id"], source=candidate["source"], title=candidate["title"],
-                            size_bytes=output.stat().st_size, duration_seconds=duration, object_key=key)
-                    print("Trailer uploaded to R2.")
-                    return 0
-            except JobError as error:
-                last_error = str(error)
-                print(f"Candidate failed: {last_error}")
-        raise JobError(last_error)
+        with storage_lease(s3, bucket):
+            ensure_capacity(s3, bucket)
+            candidates = resolver(media_type, tmdb_id, language)
+            if not candidates:
+                publish("not_found", error="no_matching_trailer")
+                print("No matching trailer found.")
+                return 0
+            last_error = "download_failed"
+            for candidate in candidates:
+                try:
+                    with tempfile.TemporaryDirectory(prefix="trailer-") as temp:
+                        output, duration = downloader(candidate, Path(temp))
+                        ensure_capacity(s3, bucket, output.stat().st_size)
+                        s3.upload_file(str(output), bucket, key, ExtraArgs={"ContentType": "video/mp4", "CacheControl": CACHE_CONTROL})
+                        publish("ready", youtube_id=candidate["youtube_id"], source=candidate["source"], title=candidate["title"],
+                                size_bytes=output.stat().st_size, duration_seconds=duration, object_key=key)
+                        print("Trailer uploaded to R2.")
+                        return 0
+                except JobError as error:
+                    last_error = str(error)
+                    print(f"Candidate failed: {last_error}")
+            raise JobError(last_error)
     except JobError as error:
         publish("failed", error=str(error))
         print(f"Trailer job failed: {error}")

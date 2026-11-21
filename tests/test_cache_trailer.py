@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import io
 from pathlib import Path
 import unittest
 import tempfile
@@ -16,12 +17,25 @@ class S3:
         self.cached = cached
         self.states = []
         self.uploads = []
+        self.objects = {}
+        self.copies = []
     def head_object(self, **kwargs):
         if self.cached:
             return {'ContentLength': 123}
         raise ClientError({'Error': {'Code': '404'}}, 'HeadObject')
     def put_object(self, **kwargs):
-        self.states.append(json.loads(kwargs['Body']))
+        key = kwargs['Key']
+        if kwargs.get('IfNoneMatch') == '*' and key in self.objects:
+            raise ClientError({'Error': {'Code':'PreconditionFailed'}}, 'PutObject')
+        self.objects[key] = kwargs['Body']
+        if key.endswith('/metadata.json'): self.states.append(json.loads(kwargs['Body']))
+    def get_object(self, **kwargs):
+        if kwargs['Key'] not in self.objects:
+            raise ClientError({'Error': {'Code':'NoSuchKey'}}, 'GetObject')
+        return {'Body':io.BytesIO(self.objects[kwargs['Key']]),'ETag':'"test"'}
+    def delete_object(self, **kwargs): self.objects.pop(kwargs['Key'],None)
+    def list_objects_v2(self, **kwargs): return {'Contents':[],'IsTruncated':False}
+    def copy_object(self, **kwargs): self.copies.append(kwargs)
     def upload_file(self, path, bucket, key, **kwargs):
         assert Path(path).read_bytes() == b'video'
         self.uploads.append(key)
@@ -56,6 +70,26 @@ class Pipeline(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp, patch.dict(job.os.environ, {'YOUTUBE_PO_PROVIDER': 'true'}), patch.object(job, 'download_with_client', side_effect=[job.JobError('youtube_format_unavailable'), ('video', 30)]) as download:
             self.assertEqual(job.download({}, Path(temp)), ('video', 30))
             self.assertEqual([c.args[2] for c in download.call_args_list], ['default', 'mweb'])
+
+    def test_storage_budget_blocks_download_before_resolving(self):
+        s3 = S3()
+        s3.list_objects_v2 = lambda **kwargs: {'Contents':[{'Size':job.STORAGE_LIMIT_BYTES}], 'IsTruncated':False}
+        def resolver(*args): raise AssertionError('must not resolve when storage is full')
+        self.assertEqual(job.run_job(s3, 'bucket', 'movie','1','en',resolver),1)
+        self.assertEqual(s3.states[-1]['error'],'storage_budget_exceeded')
+        self.assertNotIn('trailer-control/v1/download-lock.json',s3.objects)
+
+    def test_capacity_checks_all_pages_and_reserves_output_size(self):
+        s3 = S3(); pages=iter([{'Contents':[{'Size':job.STORAGE_LIMIT_BYTES-100}], 'IsTruncated':True, 'NextContinuationToken':'next'}, {'Contents':[{'Size':10}], 'IsTruncated':False}])
+        s3.list_objects_v2=lambda **kwargs: next(pages)
+        self.assertEqual(job.ensure_capacity(s3,'bucket',90),job.STORAGE_LIMIT_BYTES-90)
+
+    def test_crashed_upload_lease_can_be_recovered_by_etag(self):
+        s3=S3(); key='trailer-control/v1/download-lock.json'
+        s3.objects[key]=json.dumps({'owner':'old','expires_at':0}).encode()
+        with job.storage_lease(s3,'bucket'):
+            self.assertNotEqual(json.loads(s3.objects[key])['owner'],'old')
+        self.assertNotIn(key,s3.objects)
 
     def test_cached_media_does_not_call_external_source(self):
         s3 = S3(True)

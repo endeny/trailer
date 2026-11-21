@@ -2,6 +2,7 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+import tempfile
 from unittest.mock import patch
 from botocore.exceptions import ClientError
 
@@ -44,6 +45,17 @@ class Pipeline(unittest.TestCase):
             result = job.resolve('movie', '299534', 'en')
         self.assertEqual(result[0]['youtube_id'], '12345678901')
         self.assertNotIn('categories=', fetch.call_args.args[0])
+
+    def test_default_client_is_used_before_token_dependent_mweb(self):
+        with tempfile.TemporaryDirectory() as temp, patch.dict(job.os.environ, {'YOUTUBE_PO_PROVIDER': 'true'}), patch.object(job, 'download_with_client', return_value=('video', 30)) as download:
+            self.assertEqual(job.download({}, Path(temp)), ('video', 30))
+            self.assertEqual(download.call_args.args[2], 'default')
+            self.assertEqual(download.call_count, 1)
+
+    def test_mweb_is_a_fallback_after_default_client_failure(self):
+        with tempfile.TemporaryDirectory() as temp, patch.dict(job.os.environ, {'YOUTUBE_PO_PROVIDER': 'true'}), patch.object(job, 'download_with_client', side_effect=[job.JobError('youtube_format_unavailable'), ('video', 30)]) as download:
+            self.assertEqual(job.download({}, Path(temp)), ('video', 30))
+            self.assertEqual([c.args[2] for c in download.call_args_list], ['default', 'mweb'])
 
     def test_cached_media_does_not_call_external_source(self):
         s3 = S3(True)

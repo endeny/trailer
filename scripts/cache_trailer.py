@@ -119,11 +119,11 @@ def command(args, timeout=240):
     return result.stdout
 
 
-def download(candidate, directory):
+def download_with_client(candidate, directory, client):
     base = ["yt-dlp", "--ignore-config", "--no-playlist", "--no-progress", "--no-warnings",
             "--socket-timeout", "30", "--retries", "2", "--fragment-retries", "2", "--concurrent-fragments", "1"]
-    if os.environ.get("YOUTUBE_PO_PROVIDER") == "true":
-        base += ["--extractor-args", "youtube:player_client=mweb"]
+    if client != "default":
+        base += ["--extractor-args", "youtube:player_client=" + client]
     if os.environ.get("YOUTUBE_COOKIES_FILE"):
         base += ["--cookies", os.environ["YOUTUBE_COOKIES_FILE"]]
     url = f"https://www.youtube.com/watch?v={candidate['youtube_id']}"
@@ -152,6 +152,25 @@ def download(candidate, directory):
     if not any(s.get("codec_name") == "h264" for s in probe.get("streams", [])):
         raise JobError("invalid_output")
     return output, float(probe["format"]["duration"])
+
+
+
+def download(candidate, directory):
+    # yt-dlp defaults can expose playable HLS formats without a GVS token.
+    # Forcing mweb first can discard those formats even with valid account cookies.
+    profiles = ["default"]
+    if os.environ.get("YOUTUBE_PO_PROVIDER") == "true":
+        profiles.append("mweb")
+    last_error = None
+    for client in profiles:
+        work = directory / client
+        work.mkdir()
+        try:
+            return download_with_client(candidate, work, client)
+        except JobError as error:
+            last_error = error
+            print(f"Download profile {client} failed: {error}")
+    raise last_error
 
 
 def now():

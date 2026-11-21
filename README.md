@@ -32,7 +32,7 @@ python3 scripts/prepare_cookies.py /absolute/path/cookies.txt --upload --repo en
 
 支持 Netscape 和常见浏览器 Cookie JSON；保留 HttpOnly 标志、按域名/路径/名称去重，排除其他网站 Cookie，过滤后仍超限则停止。工具只输出条数和字节数，不打印内容、不修改原文件。工作流也会重新过滤 Secret 后才生成 mode-0600 临时文件。
 
-Cookie 不是永久凭据，也不保证消除 YouTube 的 IP/Token 验证。工作流包含 yt-dlp 的 EJS 依赖与 Deno；Actions 默认启动仅绑定 runner 回环地址的 `bgutil-ytdlp-pot-provider:2.0.2`，通过 mweb 客户端使用 PO Token。Token 仍不保证解决 IP 风控；本地验证默认不启用此服务。若 GitHub runner 下载被拒绝，应按实际错误维护下载器/认证或改用 self-hosted runner。不要将 Cookie、密钥或下载文件提交到 public 仓库，不上传原始下载日志作为 artifact。
+Cookie 不是永久凭据，也不保证消除 YouTube 的 IP/Token 验证。工作流包含 yt-dlp 的 EJS 依赖与 Deno；Actions 默认启动仅绑定 runner 回环地址的 `bgutil-ytdlp-pot-provider:2.0.2`，优先使用 yt-dlp 默认客户端；失败后才尝试 mweb 与 PO Token，避免强制 mweb 丢失可播放的 HLS 格式。Token 仍不保证解决 IP 风控；本地验证默认不启用此服务。若 GitHub runner 下载被拒绝，应按实际错误维护下载器/认证或改用 self-hosted runner。不要将 Cookie、密钥或下载文件提交到 public 仓库，不上传原始下载日志作为 artifact。
 
 ## 2. 先验证下载环境（不需要 R2）
 

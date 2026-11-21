@@ -1,10 +1,11 @@
 # iPlay Trailer Cache
 
-输入 TMDB 媒体类型、ID 和视频语言，由 GitHub Actions 查找并下载对应预告片，转成 H.264/AAC MP4 后上传 Cloudflare R2。Cloudflare Worker 提供任务提交、状态查询与支持 Range 的原生播放接口。
+输入 TMDB 媒体类型、ID 和视频语言，由 GitHub Actions 查找并下载对应预告片，转成 720p／1080p H.264/AAC MP4 后优先上传私有 Hugging Face 数据集。R2 仅保留小型任务/清单对象和既有视频回退；Worker 保持原 trailer_url 契约。
 
 ```text
-POST Worker → workflow_dispatch → TMDB/KinoCheck → yt-dlp + Deno + FFmpeg → R2
-GET Worker ← R2 metadata / MP4 ← 完成后供 AVPlayer/MPV 播放
+POST Worker → workflow_dispatch → TMDB/KinoCheck → yt-dlp + FFmpeg → HF private dataset
+GET metadata → Worker stable URL → short-lived HF CDN URL → AVPlayer/MPV
+R2: job state + immutable HF manifest; existing R2 MP4 as fallback
 ```
 
 仅 `workflow_dispatch` 会启动下载，不会在 push、PR 或 fork 时运行下载或使用存储密钥。没有找到、需要认证或下载失败时明确返回状态，不用演示视频代替。
@@ -15,6 +16,7 @@ GET Worker ← R2 metadata / MP4 ← 完成后供 AVPlayer/MPV 播放
 
 | Secret | 必需 | 用途 |
 | --- | --- | --- |
+| `HF_TOKEN` | HF 必需 | 可写入私有数据集的 Token；另配置同名 Worker Secret |
 | `R2_ACCOUNT_ID` | 上传必需 | Cloudflare Account ID（32 位十六进制） |
 | `R2_ACCESS_KEY_ID` | 上传必需 | 仅限目标 bucket 的 Object Read & Write S3 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | 上传必需 | 配套 S3 Secret Access Key |
@@ -22,7 +24,7 @@ GET Worker ← R2 metadata / MP4 ← 完成后供 AVPlayer/MPV 播放
 | `KINOCHECK_API_KEY` | 可选 | 提升 KinoCheck 请求额度 |
 | `YOUTUBE_COOKIES` | 可选 | 仅含 YouTube 域名的 Netscape Cookie，用于确实需要认证的情况 |
 
-Actions Variable `R2_BUCKET` 默认 `media`；如果改名，须同步修改 Worker 的 `wrangler.toml`。
+Actions Variables：`STORAGE_BACKEND=hf`（默认）、`HF_REPO_ID=saltpi/iplay-trailers`；显式设置 `STORAGE_BACKEND=r2` 才启用旧上传路径。`R2_BUCKET` 默认 `media`；如果改名，须同步修改 Worker 的 `wrangler.toml`。
 
 GitHub 单个 Secret 限制 48 KB。浏览器全站导出经常超限，不要直接粘贴整份文件。使用辅助工具只保留 YouTube Cookie，并直接通过 stdin 上传 Secret：
 
@@ -67,6 +69,7 @@ npx wrangler r2 bucket create media
 `wrangler.toml` 已配置 `endeny/trailer`、`main` 和 `cache-trailer.yml`。Worker Secrets：
 
 ```bash
+npx wrangler secret put HF_TOKEN
 npx wrangler secret put SUBMIT_TOKEN
 npx wrangler secret put GITHUB_TOKEN
 npm run deploy
@@ -91,7 +94,7 @@ curl -X POST \
   'https://YOUR-WORKER.workers.dev/v1/trailers/movie/299534/en'
 ```
 
-首次提交返回 HTTP 202；建议间隔至少 15 秒查询。状态为 `missing / pending / running / ready / failed / not_found / expired`。仅 R2 中实际存在视频对象时返回 `ready` 和播放地址：
+首次提交返回 HTTP 202；建议间隔至少 15 秒查询。状态为 `missing / pending / running / ready / failed / not_found / expired`。HF 完成提交并发布校验清单，或已有 R2 视频对象时返回 `ready` 和播放地址。HF 优先于 R2，默认 720p；HF 状态另含 `storage: "hf"` 和 `trailer_urls` 两档地址：
 
 ```json
 {
@@ -100,7 +103,7 @@ curl -X POST \
   "language": "en",
   "status": "ready",
   "size_bytes": 20000000,
-  "trailer_url": "https://YOUR-WORKER.workers.dev/media/movie/299534/en.mp4"
+  "trailer_url": "https://YOUR-WORKER.workers.dev/media/movie/299534/en.mp4?quality=720p"
 }
 ```
 
@@ -113,8 +116,8 @@ curl -X POST \
 - Worker 用 R2 ETag 条件写原子占位，同一身份并发提交仅调度一次；每日自动下载默认最多 8 个（Asia/Shanghai），同样使用 R2 条件写计数。
 - Worker pending/running 30 分钟未更新视为 expired，可重新提交；失败退避 6 小时，无候选退避 7 天。Actions 被强制取消、安装依赖失败或 R2 无法访问时可能无法写失败状态，由超时恢复。
 - 尽量按请求语言选择官方 Trailer，再选 Teaser；最多尝试 3 个去重后的候选。不会拿其他语言、电影或演示片冒充。
-- 最长 5 分钟，下载格式不超过 720p，下载单个文件上限 150 MiB；FFmpeg 输出 H.264/AAC、yuv420p、faststart，最终 MP4 上限 40 MiB。输入未知时长/直播会拒绝。
-- 下载前和上传前检查整个 `media` 桶的 8 GB 预算；通过有超时恢复的 R2 条件租约串行上传，超限停止新增缓存，保留现有视频。仅 `trailers/v1/` 的未完成分片上传在 1 天后清理，不删除已完成视频。其他应用写入不受本服务限制。
+- 最长 5 分钟，下载原生最高 1080p 一次；生成 720p（≤40 MiB）及源站实际提供时的 1080p（≤120 MiB）。不放大低分辨率视频；H.264/AAC、yuv420p、faststart。输入未知时长/直播会拒绝。
+- HF 下载前预留两档大小，上传前核算当前数据集文件总大小，预算 90 GB。此数值不包含其他仓库及历史版本占用，不能替代 HF 账号存储统计；不自动清理历史。旧 R2 模式下载前和上传前检查整个 `media` 桶的 8 GB 预算；通过有超时恢复的 R2 条件租约串行上传，超限停止新增缓存，保留现有视频。仅 `trailers/v1/` 的未完成分片上传在 1 天后清理，不删除已完成视频。其他应用写入不受本服务限制。
 - 不自动反复重试认证错误。公开状态只记录 `youtube_auth_required`、`youtube_token_required`、`youtube_access_denied` 等固定错误码；原始下载输出不进入 public 日志。
 - Public 仓库不代表无限计算资源；此工作流用于项目预告片的低频预热。大量任务、持续抓取或部署更多 runner 前，需按实际 GitHub Actions 配额和使用政策评估。
 
@@ -162,10 +165,10 @@ python3 -m venv .venv
 
 ## iPlay 生产接入与 CDN
 
-已绑定 `https://trailers.saltpi.cn` 到 R2 `media`，沿用 saltpi.cn 的 Free Website 计划。视频 URL 直接对应 R2 对象，生产 Range 已实测 206 / CF-Cache-Status: HIT；不依赖每次播放都经 Worker 读取 R2。对象缓存头为浏览器 1 天、边缘 30 天。旧 `/media/...` 地址做可缓存重定向。
+已绑定 `https://trailers.saltpi.cn` 到 R2 `media`，沿用 saltpi.cn 的 Free Website 计划。视频 URL 直接对应 R2 对象，生产 Range 已实测 206 / CF-Cache-Status: HIT；不依赖每次播放都经 Worker 读取 R2。对象缓存头为浏览器 1 天、边缘 30 天。旧 R2 媒体做可缓存重定向；HF 媒体稳定地址每次获取短期文件签名，响应 no-store，避免缓存过期签名。
 
 现有 `tmdb.saltpi.cn` 后端通过 service binding 查此服务，并继续向客户端返回原有 `trailer_url` 字段。没有修改客户端，也没有把 GitHub/R2/Cookie 凭据交给客户端。详情与热榜/热映前两个候选可后台预热；失败保留海报。原始 TMDB 数据长缓存、URL 响应 60 秒缓存、就绪身份 6 小时缓存，未就绪身份短缓存；每个响应最多查 18 个媒体身份，避免大量二次请求。
 
 自动任务每天 8 个限额不限制管理员显式手动运行 Actions；存储检查适用于工作流上传。没有启用付费 Stream、Cache Reserve、Durable Objects、KV 或 Queues。R2 和 Workers 额度由账号共享，其他应用的用量不在本服务控制范围。
 
-HF 扩容与双清晰度的官方文档评估见 [Hugging Face 可行性](doc/HUGGINGFACE_ASSESSMENT.md)；当前尚未迁移 HF 或启用 1080p。
+HF 优先存储、双清晰度与实际部署验证见 [HF 实现与边界](doc/HUGGINGFACE_ASSESSMENT.md)。HF 路径使用其文件分发服务；不把 HF 的限流/免费额度称为无限 CDN，也不额外购买 Cloudflare 视频服务。

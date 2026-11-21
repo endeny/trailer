@@ -1,19 +1,22 @@
-# Hugging Face 预告片存储可行性（2026-11-21）
+# HF 优先存储与双清晰度（2026-11-21）
 
-结论：技术上可以存 MP4 与 720p/1080p 两档，也可以保留现有 trailer_url 契约，仅修改 Actions/Worker 后端。但尚未配置 HF 数据集或执行上传，当前生产仍使用 R2 与真实 CDN。
+本次按用户要求实现 HF 为视频主存储。Actions 默认 STORAGE_BACKEND=hf；R2 保留小型任务状态、HF 提交清单、全局租约和预算计数，既有 R2 视频可回退。没有修改客户端模型或界面。
 
-官方视频数据集支持直接存放 MP4，并通过 metadata.jsonl 等记录视频信息：[视频数据集](https://huggingface.co/docs/hub/datasets-video)、[上传指南](https://huggingface.co/docs/hub/datasets-adding)。
+## 实现
 
-免费用户/组织当前私有存储为 100 GB，公开存储为 Best-effort。公开大数据集应具备社区复用价值，不能据此承诺“无限免费网盘/CDN”。该评估不把纯 App 缓存伪装成机器学习数据集：[存储政策](https://huggingface.co/docs/hub/storage-limits)。
+- `scripts/download_variants.py` 原生最高 1080p 下载一次，转码 H.264/AAC/yuv420p/faststart；720p ≤40 MiB，1080p ≤120 MiB，最长 300 秒。低分辨率源不会放大冒充 1080p。
+- `scripts/hf_storage.py` 向私有数据集 `saltpi/iplay-trailers` 原子提交两档 MP4 与 manifest.json。文件路径包含 SHA-256，R2 清单固定 commit SHA，缓存命中跳过下载；提交失败不发布 ready，不把新视频转存 R2。
+- `scripts/hf_job.py` 串行租约下核算当前数据集文件，下载前预留 160 MiB，预算 90 GB。该预算不覆盖其他仓库或历史版本；HF 账号额度仍需监测，不保证无限免费。
+- `worker/hf.mjs` 校验固定 repo、commit、路径、尺寸；HF 清单优先于旧 R2。trailer_url 为稳定 Worker 地址，默认 720p；额外 trailer_urls 可含 1080p，现有客户端继续使用原字段。
+- Token 仅在 GitHub Secret/Worker Secret；Worker 请求 HF resolve 后返回短期文件签名重定向，no-store，不把主 Token 给客户端，不让视频大流量经过 Worker。HF 出错且旧 R2 文件存在才回退；无回退时 502。
+- 未配置 HF_TOKEN 时不调度新任务，不消耗自动下载预算。旧视频仍可读。
 
-文件 resolve 接口也有限流，超过返回 429；限额按五分钟窗口计算，Free/匿名额度可能调整。因此只读文档不能替代实际视频 Range、重定向、缓存及部署网络测试：[限流](https://huggingface.co/docs/hub/rate-limits)。
+## 额度与分发
 
-建议的后端方案（尚未实现）：
+HF 免费私有存储官方当前为 100 GB（账号共享），公开存储为 Best-effort，文件解析接口有限流；本实现采用私有数据集，不把纯 App 视频缓存包装成公开训练数据集。HF 分发不等于 Cloudflare CDN HIT；原 R2 回退域名仍用原有免费 CDN，不开付费 Stream、Cache Reserve、KV、DO。
 
-- Actions 仅在源站确实提供 1080p 时下载最高 1080p，制作 720p 与 1080p H.264/AAC MP4，记录尺寸、时长、字节数和源视频 ID；不把 720p 放大冒充 1080p。
-- 路径示例 movie/<tmdb_id>/<language>/<youtube_id>/720p.mp4 和 1080p.mp4，一次提交两档及元数据，减少提交数量；不把 Hub Git 仓库当作高频状态数据库。
-- HF 承担归档，R2 保留受限的热门播放缓存；当前 trailers.saltpi.cn 继续负责 CDN。这个组合是工程建议，HF 的免费可用性与是否符合托管政策仍由平台决定。
-- Worker 从元数据选择版本填入原 trailer_url，默认保持 720p；客户端无需知道 HF Token、上传及存储细节。让用户在界面手动选择清晰度才需要另做 UI 能力，当前没有实现该能力。
-- 私有数据集 Token 留在后端，不能拼到公开播放 URL。永久 resolve 路径与其临时重定向目标应区别处理，不把临时签名地址长期写死。
+参考：[视频数据集](https://huggingface.co/docs/hub/datasets-video)、[上传指南](https://huggingface.co/docs/hub/datasets-adding)、[存储政策](https://huggingface.co/docs/hub/storage-limits)、[限流](https://huggingface.co/docs/hub/rate-limits)。
 
-接入所需：用户指定数据集 ID（owner/name）、可见性与受限 HF 写入 Token；完成实际上传和播放测试后才切换生产。当前 1080p/HF 都属于待接入方案，现有已部署下载上限仍为 720p。
+## 验证记录
+
+基线 `6d583d2`。本地 Worker、Python 测试与 Wrangler dry-run 通过；实际上传/播放与代码提交 hash 随后补记于 [VALIDATION.md](VALIDATION.md)。代码检查通过不代表 YouTube 对所有片源都允许下载。

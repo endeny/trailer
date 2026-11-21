@@ -62,6 +62,9 @@ jobs:
           curl --silent --output /dev/null http://127.0.0.1:4416
       - name: Download and upload trailer
         env:
+          STORAGE_BACKEND: ${{ vars.STORAGE_BACKEND || 'hf' }}
+          HF_REPO_ID: ${{ vars.HF_REPO_ID || 'saltpi/iplay-trailers' }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           YOUTUBE_PO_PROVIDER: "true"
           DRY_RUN: ${{ inputs.dry_run }}
           MEDIA_TYPE: ${{ inputs.media_type }}

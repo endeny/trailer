@@ -1,3 +1,4 @@
+import { hfManifest, hfStatus, hfMedia } from './hf.mjs';
 const PREFIX = "trailers/v1";
 const JOB_TTL_MS = 30 * 60 * 1000;
 const RETRY_MS = 6 * 60 * 60 * 1000;
@@ -48,6 +49,14 @@ export function trailerURL(env, route, origin) {
 }
 
 async function mediaResponse(request, env, route) {
+  const state = await readState(env, route);
+  const manifest = hfManifest(env, route, state);
+  if (manifest) {
+    try { return await hfMedia(request, env, route, manifest); }
+    catch {
+      if (!await env.TRAILERS.head(`${route.base}/video.mp4`)) return json({ error: "hf_temporarily_unavailable" }, 502);
+    }
+  }
   if (env.CDN_BASE_URL) {
     return new Response(null, { status: 302, headers: {
       Location: trailerURL(env, route, new URL(request.url).origin),
@@ -153,12 +162,14 @@ async function handle(request, env, ctx) {
   if (!allowed.includes(request.method)) return json({ error: "method_not_allowed" }, 405, { Allow: allowed.join(", ") });
   if (request.method === "POST" && !await authenticated(request, env.SUBMIT_TOKEN)) return json({ error: "unauthorized" }, 401);
   if (route.media) return mediaResponse(request, env, route);
-  // Presence of the actual object is authoritative, including a completed upload whose final status write failed.
+  const state = await readState(env, route);
+  const hf = hfStatus(env, route, state, url.origin);
+  if (hf) return json(hf);
+  // Keep completed legacy R2 files usable while HF is being filled.
   const video = await env.TRAILERS.head(`${route.base}/video.mp4`);
   if (video) return json({ media_type: route.type, tmdb_id: Number(route.id), language: route.language,
     status: "ready", size_bytes: video.size,
     trailer_url: trailerURL(env, route, url.origin) });
-  const state = await readState(env, route);
   if (request.method === "GET") return json({ ...state, trailer_url: null, status: state.status === "ready" ? "missing" : state.status });
   if (["pending", "running"].includes(state.status)) return json({ status: state.status, trailer_url: null }, 202, { "Retry-After": "15" });
   const retryMS = state.status === "not_found" ? 7 * 86400000 : RETRY_MS;
@@ -166,6 +177,7 @@ async function handle(request, env, ctx) {
     const seconds = Math.ceil((retryMS - (Date.now() - Date.parse(state.updated_at))) / 1000);
     return json({ status: state.status, error: state.error, retry_after: seconds }, 429, { "Retry-After": String(seconds) });
   }
+  if (env.STORAGE_BACKEND === "hf" && !env.HF_TOKEN) return json({ error: "hf_not_configured" }, 503);
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.GITHUB_REPOSITORY || "") || env.GITHUB_REPOSITORY === "OWNER/REPOSITORY" || !env.GITHUB_TOKEN) {
     return json({ error: "dispatch_not_configured" }, 503);
   }

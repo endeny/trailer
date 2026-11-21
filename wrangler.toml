@@ -8,9 +8,13 @@ GITHUB_WORKFLOW = "cache-trailer.yml"
 GITHUB_REF = "main"
 CDN_BASE_URL = "https://trailers.saltpi.cn"
 DAILY_DOWNLOAD_LIMIT = "8"
+STORAGE_BACKEND = "hf"
+HF_REPO_ID = "saltpi/iplay-trailers"
+PUBLIC_MEDIA_ORIGIN = "https://iplay-trailer-cache.ourfor.workers.dev"
+DEFAULT_TRAILER_QUALITY = "720p"
 
 [[r2_buckets]]
 binding = "TRAILERS"
 bucket_name = "media"
 
-# Secrets: SUBMIT_TOKEN, GITHUB_TOKEN (fine-grained, target repo Actions: write)
+# Secrets: HF_TOKEN, SUBMIT_TOKEN, GITHUB_TOKEN (fine-grained, target repo Actions: write)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve one media trailer, download it, and publish a complete MP4 to R2.
+"""Resolve a trailer and publish HF variants (or the explicit legacy R2 backend).
 
 No external input is evaluated by a shell. Detailed downloader output is deliberately
 not copied into public Actions logs or public R2 metadata (it can contain credentials).
@@ -325,8 +325,10 @@ def main():
         for candidate in candidates:
             try:
                 with tempfile.TemporaryDirectory(prefix="trailer-smoke-") as temp:
-                    path, duration = download(candidate, Path(temp))
-                    print(json.dumps({"status": "verified", "youtube_id": candidate["youtube_id"], "duration_seconds": duration, "size_bytes": path.stat().st_size}))
+                    from download_variants import download_variants
+                    variants, duration = download_variants(candidate, Path(temp), command, JobError)
+                    print(json.dumps({"status": "verified", "youtube_id": candidate["youtube_id"], "duration_seconds": duration,
+                                      "variants": {q: {"width": v["width"], "height": v["height"], "size_bytes": v["file"].stat().st_size} for q, v in variants.items()}}))
                     return 0
             except JobError as error:
                 last_error = str(error)
@@ -342,6 +344,12 @@ def main():
     from botocore.config import Config
     s3 = boto3.client("s3", endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com", region_name="auto",
                       config=Config(retries={"max_attempts": 3, "mode": "standard"}, connect_timeout=15, read_timeout=60))
+    backend = os.environ.get("STORAGE_BACKEND", "hf")
+    if backend == "hf":
+        from hf_job import run_hf_job
+        return run_hf_job(s3, os.environ["R2_BUCKET"], args.media_type, args.tmdb_id, args.language)
+    if backend != "r2":
+        raise JobError("invalid_storage_backend")
     return run_job(s3, os.environ["R2_BUCKET"], args.media_type, args.tmdb_id, args.language)
 
 

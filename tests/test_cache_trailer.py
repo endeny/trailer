@@ -42,6 +42,12 @@ class S3:
 
 
 class Pipeline(unittest.TestCase):
+    def test_rotated_cookie_is_classified_without_exposing_downloader_output(self):
+        result = type('Result', (), {'returncode':1, 'stdout':'', 'stderr':'WARNING: cookies are no longer valid; private cookie details'})()
+        with patch.object(job.subprocess, 'run', return_value=result):
+            with self.assertRaisesRegex(job.JobError, '^youtube_cookies_expired$'):
+                job.command(['yt-dlp'])
+
     def test_input_and_language_validation(self):
         self.assertEqual(job.validate('tv', '1399', 'en'), 'trailers/v1/tv/1399/en')
         for args in [('movie', '../12', 'en'), ('all', '12', 'en'), ('movie', '12', 'en-US')]:

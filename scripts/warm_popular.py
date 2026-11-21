@@ -12,7 +12,7 @@ import time
 from botocore.exceptions import ClientError
 from cache_trailer import create_s3, validate, now
 
-AUTH_ERRORS = {'youtube_auth_required','youtube_token_required','youtube_access_denied',
+AUTH_ERRORS = {'youtube_cookies_expired','youtube_auth_required','youtube_token_required','youtube_access_denied',
                'youtube_rate_limited','youtube_js_challenge_failed'}
 TERMINAL = {'ready','not_found'}
 BATCH_SECONDS = 315 * 60
@@ -86,7 +86,9 @@ def run_batch(s3,bucket,identities,batch_id,report_path,execute=execute_item,clo
             item.update(status='failed',error=error)
         auth_failures=auth_failures+1 if item.get('error') in AUTH_ERRORS else 0
         print(f"  {item['status']}"+(f": {item['error']}" if item.get('error') else ''),flush=True)
-        if auth_failures>=3:
+        if item.get('error')=='youtube_cookies_expired':
+            report.update(status='paused',pause_reason='youtube_cookies_expired')
+        elif auth_failures>=3:
             report.update(status='paused',pause_reason='youtube_auth_or_rate_limit')
         elif (item.get('error') or '').startswith(('hf_','storage_','missing_r2_')) or item.get('error')=='download_queue_busy':
             report.update(status='paused',pause_reason=item['error'])

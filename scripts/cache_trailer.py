@@ -110,6 +110,8 @@ def command(args, timeout=240):
         raise JobError("download_or_encode_timeout") from None
     if result.returncode:
         text = (result.stderr + result.stdout).lower()
+        if "cookies are no longer valid" in text or "cookies have likely been rotated" in text:
+            raise JobError("youtube_cookies_expired")
         if "sign in" in text or "cookies" in text or "not a bot" in text:
             raise JobError("youtube_auth_required")
         if "po token" in text or "po_token" in text:

@@ -39,6 +39,11 @@ class Batch(unittest.TestCase):
         self.assertEqual(calls,[1,2,3]);self.assertEqual(report['status'],'paused')
         self.assertEqual(report['counts'],{'ready':0,'not_found':0,'failed':3,'pending':2})
 
+    def test_explicitly_expired_cookies_pause_after_first_attempt(self):
+        report,calls=self.run_fixture(5,{i:{'status':'failed','error':'youtube_cookies_expired'} for i in range(1,6)})
+        self.assertEqual(calls,[1]);self.assertEqual(report['pause_reason'],'youtube_cookies_expired')
+        self.assertEqual(report['counts']['pending'],4)
+
     def test_resume_skips_completed_and_retries_only_remaining(self):
         first,_=self.run_fixture(4,{i:{'status':'failed','error':'youtube_auth_required'} for i in range(1,5)})
         first['items'][0]['status']='ready'

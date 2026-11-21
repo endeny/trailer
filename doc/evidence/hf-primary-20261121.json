@@ -1,0 +1,68 @@
+[
+  {
+    "tmdb_id": 299534,
+    "status": {
+      "media_type": "movie",
+      "tmdb_id": 299534,
+      "language": "en",
+      "status": "ready",
+      "storage": "hf",
+      "trailer_url": "https://trailers.saltpi.cn/media/movie/299534/en.mp4?quality=720p",
+      "quality": "720p",
+      "size_bytes": 33534820,
+      "trailer_urls": {
+        "720p": "https://trailers.saltpi.cn/media/movie/299534/en.mp4?quality=720p"
+      }
+    },
+    "redirect_status": 302,
+    "redirect_cache_control": "no-store",
+    "file_host": "us.aws.cdn.hf.co",
+    "range_status": 206,
+    "content_range": "bytes 0-1023/33534820",
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720
+      },
+      {
+        "codec_name": "aac"
+      }
+    ],
+    "duration_seconds": "185.360000",
+    "tmdb_trailer_url": "https://trailers.saltpi.cn/media/movie/299534/en.mp4?quality=720p"
+  },
+  {
+    "tmdb_id": 872585,
+    "status": {
+      "media_type": "movie",
+      "tmdb_id": 872585,
+      "language": "en",
+      "status": "ready",
+      "storage": "hf",
+      "trailer_url": "https://trailers.saltpi.cn/media/movie/872585/en.mp4?quality=720p",
+      "quality": "720p",
+      "size_bytes": 25573927,
+      "trailer_urls": {
+        "720p": "https://trailers.saltpi.cn/media/movie/872585/en.mp4?quality=720p"
+      }
+    },
+    "redirect_status": 302,
+    "redirect_cache_control": "no-store",
+    "file_host": "us.aws.cdn.hf.co",
+    "range_status": 206,
+    "content_range": "bytes 0-1023/25573927",
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1280,
+        "height": 720
+      },
+      {
+        "codec_name": "aac"
+      }
+    ],
+    "duration_seconds": "129.911000",
+    "tmdb_trailer_url": "https://trailers.saltpi.cn/media/movie/872585/en.mp4?quality=720p"
+  }
+]

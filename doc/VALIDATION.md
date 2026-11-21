@@ -117,3 +117,16 @@ Cloudflare 已有登录态，但首次列举 bucket 返回 `10001`；再次请�
 - 12 项 Worker +17 项 Python 测试通过，GitHub 检查 44881814407 成功。iPlay.Server 配套 8 项测试通过，生产 movie/299534 与 movie/872585 的 trailer_url 已指向 CDN，人物数据不注入字段。
 - 热映页请求确实后台触发 1263337 与 1400837 的 Actions；两者仍遭遇 YouTube 验证限制，保持 null 和退避。不能把这两次失败宣称为所有影片均可下载。
 - 客户端代码没有因本次接入变更。具体 iPlay.Server 代码与独立提交追溯由其 doc/issues/20261121_trailer_cdn_integration.md 维护。
+
+## 2026-11-21：HF 优先存储已部署
+
+- 基线 `6d583d2`；主实现 `c739195`，盐派域名路由 `6073743`，既有真实视频迁移 `41e0330`，显式清晰度刷新 `cda51b5`，刷新期间保持可播放 `62035b6`。本节为后续文档归档，不冒充功能提交。
+- 私有数据集 `saltpi/iplay-trailers` 已创建；HF_TOKEN 经 stdin 配置 GitHub Secret 与 Worker Secret，无 Token/Cookie 写入 public 仓库或原始调试日志。
+- Worker 生产版本 `9ec2dab0-baa2-4ea6-8392-d10518835656`，路由只接管 `trailers.saltpi.cn/media/*`；旧 R2 `trailers/v1/*` 路径继续工作。HF 优先，R2 不接收新视频，仅任务/清单/租约/计数和已有视频回退。默认 720p，源站提供时生成 1080p，可手动 refresh=true 升级。
+- 19 项 Worker、26 项 Python 测试通过，Wrangler dry-run 通过；CI [44884358914](https://github.com/endeny/trailer/actions/runs/44884358914) 成功。
+- 首次下载 [44883998409](https://github.com/endeny/trailer/actions/runs/44883998409) 遇 YouTube 认证失败，本机同一源预检也被拒绝。HF 存储权限与 YouTube 认证是不同环节。新增同身份旧视频迁移后，[299534](https://github.com/endeny/trailer/actions/runs/44884182787)、[872585](https://github.com/endeny/trailer/actions/runs/44884303121) 均通过真实 Actions 上传至 HF。
+- 两个状态均 storage=hf，返回稳定 trailers.saltpi.cn 媒体入口，即使 R2 同名文件存在仍选择 HF；Worker 302 / no-store / X-Trailer-Storage: hf，主 Token 不下发客户端，短期文件目标为 us.aws.cdn.hf.co。
+- 实际文件 Range 分别返回 206 / bytes 0-1023/33534820 与 bytes 0-1023/25573927；ffprobe 均为真实 1280×720 H.264 + AAC。生产 tmdb.saltpi.cn 两部详情均 HTTP 200 并返回对应稳定 HF URL。可检查 [去除签名与凭据的验证证据](evidence/hf-primary-20261121.json)。
+- [44884472205](https://github.com/endeny/trailer/actions/runs/44884472205) 重复任务成功，日志明确 HF cache hit; download skipped，验证无重复下载。
+- 1080p 编码与实际尺寸选择有自动测试覆盖，本轮源站认证被拒绝，未取得真实 1080p 产物；未把迁移的 720p 冒充双档。没有实施移动端运行测试。
+- HF 当前文件预算 90 GB 不含其他仓库/历史版本，受 HF 账号实际额度和解析限流约束；HF 文件 CDN 不等同 Cloudflare HIT，不承诺无限免费存储/分发。未启用付费视频/CDN产品。
